@@ -3,13 +3,20 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | Sign In</title>
+        <title>CardFlow | Account Access</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="cardflow-body">
+        @php
+            $authMode = session('auth_mode');
+
+            if (! $authMode) {
+                $authMode = $errors->register->isNotEmpty() ? 'signup' : 'signin';
+            }
+        @endphp
         <main class="cardflow-shell">
             <section class="hero-panel">
                 <div class="brand-lockup">
@@ -65,38 +72,119 @@
                 </div>
             </section>
 
-            <section class="auth-panel" aria-label="Sign in panel">
-                <div class="auth-card">
-                    <p class="auth-kicker">Sign In</p>
-                    <h2>Welcome back</h2>
-                    <p class="auth-copy">Use your account details to continue your collection journey.</p>
+            <section class="auth-panel" aria-label="Account access panel">
+                <div class="auth-card" data-auth-card>
+                    <div class="auth-switch" role="tablist" aria-label="Authentication mode">
+                        <button type="button" class="auth-switch-button {{ $authMode === 'signin' ? 'is-active' : '' }}" data-auth-trigger="signin" aria-selected="{{ $authMode === 'signin' ? 'true' : 'false' }}">Sign in</button>
+                        <button type="button" class="auth-switch-button {{ $authMode === 'signup' ? 'is-active' : '' }}" data-auth-trigger="signup" aria-selected="{{ $authMode === 'signup' ? 'true' : 'false' }}">Create account</button>
+                    </div>
 
-                    <form class="auth-form" action="{{ route('dashboard') }}" method="GET">
-                        <label class="field-group">
-                            <span>Email Address</span>
-                            <input type="email" name="email" placeholder="hello@yourbrand.com" autocomplete="email">
-                        </label>
+                    @if (session('status'))
+                        <div class="auth-status">{{ session('status') }}</div>
+                    @endif
 
-                        <div class="field-row">
+                    <div class="auth-pane {{ $authMode === 'signin' ? 'is-active' : '' }}" data-auth-pane="signin" @if ($authMode !== 'signin') hidden @endif>
+                        <p class="auth-kicker">Sign In</p>
+                        <h2>Welcome back</h2>
+                        <p class="auth-copy">Use your account details to continue your collection journey.</p>
+
+                        <form class="auth-form" action="{{ url('/login') }}" method="POST">
+                            @csrf
                             <label class="field-group">
-                                <span>Password</span>
-                                <input type="password" name="password" placeholder="Enter your password" autocomplete="current-password">
+                                <span>Email Address</span>
+                                <input type="email" name="email" value="{{ old('email') }}" placeholder="hello@yourbrand.com" autocomplete="email">
+                                @error('email', 'login')
+                                    <small class="field-error">{{ $message }}</small>
+                                @enderror
                             </label>
-                            <a href="#" class="field-link">Forgot?</a>
-                        </div>
 
-                        <div class="form-meta">
-                            <label class="remember-row">
-                                <input type="checkbox" name="remember">
-                                <span>Remember me</span>
+                            <div class="field-row">
+                                <label class="field-group">
+                                    <span>Password</span>
+                                    <input type="password" name="password" placeholder="Enter your password" autocomplete="current-password">
+                                    @error('password', 'login')
+                                        <small class="field-error">{{ $message }}</small>
+                                    @enderror
+                                </label>
+                                <a href="#" class="field-link">Forgot?</a>
+                            </div>
+
+                            <div class="form-meta">
+                                <label class="remember-row">
+                                    <input type="checkbox" name="remember" @checked(old('remember'))>
+                                    <span>Remember me</span>
+                                </label>
+                                <span class="meta-chip">Protected</span>
+                            </div>
+
+                            <button type="submit" class="submit-button">Sign in</button>
+                        </form>
+
+                        <p class="signup-copy">Need a new account? <a href="#" data-auth-link="signup">Create one</a></p>
+                    </div>
+
+                    <div class="auth-pane {{ $authMode === 'signup' ? 'is-active' : '' }}" data-auth-pane="signup" @if ($authMode !== 'signup') hidden @endif>
+                        <p class="auth-kicker">Create Account</p>
+                        <h2>Start your trading hub</h2>
+                        <p class="auth-copy">Set up your profile and start organizing your photocard collection in one place.</p>
+
+                        <form class="auth-form" action="{{ route('register') }}" method="POST">
+                            @csrf
+                            <div class="field-two-up">
+                                <label class="field-group">
+                                    <span>Full Name</span>
+                                    <input type="text" name="name" value="{{ old('name') }}" placeholder="Chrissie Lee" autocomplete="name">
+                                    @error('name', 'register')
+                                        <small class="field-error">{{ $message }}</small>
+                                    @enderror
+                                </label>
+                                <label class="field-group">
+                                    <span>Username</span>
+                                    <input type="text" name="username" value="{{ old('username') }}" placeholder="cardkeeper" autocomplete="username">
+                                    @error('username', 'register')
+                                        <small class="field-error">{{ $message }}</small>
+                                    @enderror
+                                </label>
+                            </div>
+
+                            <label class="field-group">
+                                <span>Email Address</span>
+                                <input type="email" name="email" value="{{ old('email') }}" placeholder="hello@yourbrand.com" autocomplete="email">
+                                @error('email', 'register')
+                                    <small class="field-error">{{ $message }}</small>
+                                @enderror
                             </label>
-                            <span class="meta-chip">Protected</span>
-                        </div>
 
-                        <button type="submit" class="submit-button">Sign in</button>
-                    </form>
+                            <div class="field-two-up">
+                                <label class="field-group">
+                                    <span>Password</span>
+                                    <input type="password" name="password" placeholder="Create a password" autocomplete="new-password">
+                                    @error('password', 'register')
+                                        <small class="field-error">{{ $message }}</small>
+                                    @enderror
+                                </label>
+                                <label class="field-group">
+                                    <span>Confirm</span>
+                                    <input type="password" name="password_confirmation" placeholder="Confirm password" autocomplete="new-password">
+                                </label>
+                            </div>
 
-                    <p class="signup-copy">Don't have an account? <a href="#">Create one</a></p>
+                            <div class="form-meta form-meta-stack">
+                                <label class="remember-row">
+                                    <input type="checkbox" name="terms" @checked(old('terms'))>
+                                    <span>I agree to the community guidelines and privacy terms.</span>
+                                </label>
+                                @error('terms', 'register')
+                                    <small class="field-error">{{ $message }}</small>
+                                @enderror
+                                <span class="meta-chip">Starter profile</span>
+                            </div>
+
+                            <button type="submit" class="submit-button">Create account</button>
+                        </form>
+
+                        <p class="signup-copy">Already have an account? <a href="#" data-auth-link="signin">Sign in</a></p>
+                    </div>
                 </div>
             </section>
         </main>

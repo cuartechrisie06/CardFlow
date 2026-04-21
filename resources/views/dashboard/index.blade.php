@@ -10,19 +10,24 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="dashboard-body">
+        @php
+            $user = auth()->user();
+            $username = $user->username ?: 'collector';
+            $formatMoney = fn (float|int $value) => 'PHP '.number_format((float) $value, 0);
+        @endphp
         <main class="dashboard-shell">
             <aside class="dashboard-sidebar">
                 <div class="sidebar-brand">
                     <div class="sidebar-avatar"></div>
                     <div>
-                        <p>CardFlow</p>
-                        <span>Photocard Trading</span>
+                        <p>{{ $user->name }}</p>
+                        <span>{{ '@'.$username }}</span>
                     </div>
                 </div>
 
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link is-active">Dashboard</a>
-                    <a href="#" class="sidebar-link">My Collection</a>
+                    <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
                     <a href="#" class="sidebar-link">Marketplace</a>
                     <a href="#" class="sidebar-link">Alerts</a>
                     <a href="#" class="sidebar-link">Messages</a>
@@ -33,12 +38,16 @@
                 <div class="sidebar-collector">
                     <span class="collector-label">Collector</span>
                     <div class="collector-card">
-                        <div class="collector-avatar">C</div>
-                        <div>
-                            <p>Chrissie</p>
-                            <span>Collector</span>
+                        <div class="collector-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</div>
+                        <div class="collector-details">
+                            <p title="{{ $user->name }}">{{ $user->name }}</p>
+                            <span title="{{ $user->email }}">{{ $user->email }}</span>
                         </div>
                     </div>
+                    <form action="{{ route('logout') }}" method="POST" class="logout-form">
+                        @csrf
+                        <button type="submit" class="logout-button">Log out</button>
+                    </form>
                 </div>
             </aside>
 
@@ -48,39 +57,84 @@
                         <p class="dashboard-kicker">Dashboard</p>
                         <h1>Welcome back to your collection</h1>
                         <p class="dashboard-intro">
-                            Personally curated insights, trade leads, and collection status updates all in one active wishlist workspace.
+                            Real-time collection totals, trade movement, wishlist matches, and activity from your own CardFlow account.
                         </p>
                     </div>
 
-                    <div class="dashboard-actions">
+                    <form method="GET" action="{{ route('dashboard') }}" class="dashboard-actions">
                         <label class="dashboard-search">
                             <span class="sr-only">Search cards</span>
-                            <input type="search" placeholder="Search cards, users, sets...">
+                            <input type="search" name="q" value="{{ $searchQuery ?? '' }}" placeholder="Search cards, users, sets...">
                         </label>
-                        <a href="#" class="dashboard-add-card">+ Add card</a>
-                    </div>
+                        <button type="submit" class="dashboard-search-submit">Search</button>
+                        <a href="{{ route('collection.create') }}" class="dashboard-add-card">+ Add card</a>
+                    </form>
                 </header>
+
+                @if (!empty($searchQuery))
+                    <section class="dashboard-card search-results-card">
+                        <div class="card-topline">
+                            <div>
+                                <p class="mini-label">Dashboard Search</p>
+                                <h2>Results for "{{ $searchQuery }}"</h2>
+                            </div>
+                            <span class="mini-chip">{{ $searchResults['cards']->count() + $searchResults['trades']->count() }} results</span>
+                        </div>
+
+                        <div class="search-results-grid">
+                            <div class="search-results-panel">
+                                <h3>Your cards</h3>
+                                @forelse ($searchResults['cards'] as $item)
+                                    <article class="search-result-item">
+                                        <div>
+                                            <strong>{{ $item->card->title }}</strong>
+                                            <p>{{ $item->card->artist }} • {{ $item->card->album ?: 'Standalone' }}</p>
+                                        </div>
+                                        <span>{{ $item->condition }}</span>
+                                    </article>
+                                @empty
+                                    <p class="search-empty">No collection cards matched.</p>
+                                @endforelse
+                            </div>
+
+                            <div class="search-results-panel">
+                                <h3>Trade matches</h3>
+                                @forelse ($searchResults['trades'] as $trade)
+                                    <article class="search-result-item">
+                                        <div>
+                                            <strong>{{ $trade->partner_handle ?: $trade->partner_name }}</strong>
+                                            <p>{{ $trade->card?->title ?? 'No card linked' }} • {{ ucfirst(str_replace('_', ' ', $trade->status)) }}</p>
+                                        </div>
+                                        <span>{{ $trade->partner_name }}</span>
+                                    </article>
+                                @empty
+                                    <p class="search-empty">No trades or user matches found.</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    </section>
+                @endif
 
                 <section class="stats-grid" aria-label="Collection stats">
                     <article class="stat-card">
                         <span class="stat-label">Total cards</span>
-                        <div class="stat-value">247</div>
-                        <div class="stat-note">+12 this week</div>
+                        <div class="stat-value">{{ $metrics['total_cards'] }}</div>
+                        <div class="stat-note">Cards in your collection</div>
                     </article>
                     <article class="stat-card">
                         <span class="stat-label">Collection value</span>
-                        <div class="stat-value">₱18,450</div>
-                        <div class="stat-note">+₱920 last week</div>
+                        <div class="stat-value">{{ $formatMoney($metrics['collection_value']) }}</div>
+                        <div class="stat-note">Estimated total market value</div>
                     </article>
                     <article class="stat-card">
                         <span class="stat-label">Active trades</span>
-                        <div class="stat-value">8</div>
-                        <div class="stat-note">3 awaiting reply</div>
+                        <div class="stat-value">{{ $metrics['active_trades'] }}</div>
+                        <div class="stat-note">Pending, offers, and active swaps</div>
                     </article>
                     <article class="stat-card">
                         <span class="stat-label">Wishlist matches</span>
-                        <div class="stat-value">14</div>
-                        <div class="stat-note">5 high priority</div>
+                        <div class="stat-value">{{ $metrics['wishlist_matches'] }}</div>
+                        <div class="stat-note">Matched wishlist items</div>
                     </article>
                 </section>
 
@@ -96,36 +150,30 @@
 
                         <div class="line-chart" aria-hidden="true">
                             <div class="chart-months">
-                                <span>Jan</span>
-                                <span>Feb</span>
-                                <span>Mar</span>
-                                <span>Apr</span>
-                                <span>May</span>
-                                <span>Jun</span>
+                                @foreach ($valueTrend['points'] as $point)
+                                    <span>{{ $point['label'] }}</span>
+                                @endforeach
                             </div>
                             <svg viewBox="0 0 420 150" role="presentation">
-                                <path d="M20 102 C70 92, 115 96, 160 80 S255 58, 310 72 S380 54, 400 44" />
-                                <circle cx="20" cy="102" r="4" />
-                                <circle cx="95" cy="92" r="4" />
-                                <circle cx="170" cy="79" r="4" />
-                                <circle cx="245" cy="60" r="4" />
-                                <circle cx="320" cy="69" r="4" />
-                                <circle cx="400" cy="44" r="4" />
+                                <path d="{{ $valueTrend['path'] }}" />
+                                @foreach ($valueTrend['svg_points'] as $point)
+                                    <circle cx="{{ $point['x'] }}" cy="{{ $point['y'] }}" r="4" />
+                                @endforeach
                             </svg>
                         </div>
 
                         <div class="chart-summary">
                             <div>
                                 <span class="summary-label">Peak month</span>
-                                <strong>May</strong>
+                                <strong>{{ $valueTrend['peak_month'] }}</strong>
                             </div>
                             <div>
                                 <span class="summary-label">Growth</span>
-                                <strong>+18%</strong>
+                                <strong>{{ $valueTrend['growth'] >= 0 ? '+' : '' }}{{ $valueTrend['growth'] }}%</strong>
                             </div>
                             <div>
                                 <span class="summary-label">Stability</span>
-                                <strong>Low risk</strong>
+                                <strong>{{ $valueTrend['stability'] }}</strong>
                             </div>
                         </div>
                     </article>
@@ -141,30 +189,17 @@
 
                         <div class="status-total">
                             <span class="summary-label">Trades</span>
-                            <strong>28</strong>
+                            <strong>{{ $tradeDistribution['total'] }}</strong>
                         </div>
 
                         <div class="status-list">
-                            <div class="status-row">
-                                <span>Completed</span>
-                                <div class="status-bar"><i style="width: 42%"></i></div>
-                                <strong>42%</strong>
-                            </div>
-                            <div class="status-row">
-                                <span>Pending</span>
-                                <div class="status-bar"><i style="width: 24%"></i></div>
-                                <strong>24%</strong>
-                            </div>
-                            <div class="status-row">
-                                <span>New offers</span>
-                                <div class="status-bar"><i style="width: 15%"></i></div>
-                                <strong>15%</strong>
-                            </div>
-                            <div class="status-row">
-                                <span>Cancelled</span>
-                                <div class="status-bar"><i style="width: 11%"></i></div>
-                                <strong>11%</strong>
-                            </div>
+                            @foreach ($tradeDistribution['rows'] as $row)
+                                <div class="status-row">
+                                    <span>{{ $row['label'] }}</span>
+                                    <div class="status-bar"><i style="width: {{ $row['percentage'] }}%"></i></div>
+                                    <strong>{{ $row['percentage'] }}%</strong>
+                                </div>
+                            @endforeach
                         </div>
                     </article>
 
@@ -179,27 +214,26 @@
 
                         <div class="activity-chart-panel">
                             <div class="bar-chart" aria-hidden="true">
-                                <div class="bar-chart-item"><i style="height: 58%"></i><span>IVE</span></div>
-                                <div class="bar-chart-item"><i style="height: 72%"></i><span>Aespa</span></div>
-                                <div class="bar-chart-item"><i style="height: 50%"></i><span>NJ</span></div>
-                                <div class="bar-chart-item"><i style="height: 82%"></i><span>Le S</span></div>
-                                <div class="bar-chart-item"><i style="height: 64%"></i><span>Twice</span></div>
-                                <div class="bar-chart-item"><i style="height: 42%"></i><span>Itzy</span></div>
+                                @forelse ($wishlistMomentum['bars'] as $bar)
+                                    <div class="bar-chart-item"><i style="height: {{ $bar['height'] }}%"></i><span>{{ $bar['label'] }}</span></div>
+                                @empty
+                                    <div class="empty-state">No wishlist match data yet.</div>
+                                @endforelse
                             </div>
                         </div>
 
                         <div class="metric-strip">
                             <div>
                                 <span class="summary-label">Strongest</span>
-                                <strong>Le Sserafim</strong>
+                                <strong>{{ $wishlistMomentum['strongest'] }}</strong>
                             </div>
                             <div>
                                 <span class="summary-label">Fresh matches</span>
-                                <strong>6 today</strong>
+                                <strong>{{ $wishlistMomentum['fresh_matches'] }} today</strong>
                             </div>
                             <div>
                                 <span class="summary-label">Avg. price</span>
-                                <strong>₱120</strong>
+                                <strong>{{ $formatMoney($wishlistMomentum['average_price']) }}</strong>
                             </div>
                         </div>
                     </article>
@@ -215,33 +249,28 @@
 
                         <div class="feed-panel">
                             <ul class="activity-list">
-                                <li>
-                                    <strong>@kpop_collector wants to trade with you</strong>
-                                    <span>2 minutes ago</span>
-                                </li>
-                                <li>
-                                    <strong>You added 1 new card to your collection</strong>
-                                    <span>18 minutes ago</span>
-                                </li>
-                                <li>
-                                    <strong>Wishlist found Winter - Armageddon</strong>
-                                    <span>Today, 9:24 AM</span>
-                                </li>
-                                <li>
-                                    <strong>@aespa_stan completed a trade</strong>
-                                    <span>Yesterday</span>
-                                </li>
+                                @forelse ($activityFeed['items'] as $item)
+                                    <li>
+                                        <strong>{{ $item['title'] }}</strong>
+                                        <span>{{ $item['time'] }}</span>
+                                    </li>
+                                @empty
+                                    <li>
+                                        <strong>No activity yet</strong>
+                                        <span>Your activity feed will appear here once you start collecting.</span>
+                                    </li>
+                                @endforelse
                             </ul>
                         </div>
 
                         <div class="feed-footer">
                             <div>
                                 <span class="summary-label">Daily actions</span>
-                                <strong>19</strong>
+                                <strong>{{ $activityFeed['daily_actions'] }}</strong>
                             </div>
                             <div>
                                 <span class="summary-label">Reply rate</span>
-                                <strong>83%</strong>
+                                <strong>{{ $activityFeed['reply_rate'] }}%</strong>
                             </div>
                         </div>
                     </article>
@@ -257,30 +286,16 @@
                     </div>
 
                     <div class="market-grid">
-                        <article class="market-item">
-                            <div class="market-thumb market-thumb-one"></div>
-                            <div class="market-meta">
-                                <h3>Mina - Fancy era</h3>
-                                <p>Official set</p>
-                                <div><span class="mini-chip">Mint</span><strong>₱1,450</strong></div>
-                            </div>
-                        </article>
-                        <article class="market-item">
-                            <div class="market-thumb market-thumb-two"></div>
-                            <div class="market-meta">
-                                <h3>Wonyoung - IVE Switch</h3>
-                                <p>Lucky draw</p>
-                                <div><span class="mini-chip">Rare</span><strong>₱2,200</strong></div>
-                            </div>
-                        </article>
-                        <article class="market-item">
-                            <div class="market-thumb market-thumb-three"></div>
-                            <div class="market-meta">
-                                <h3>Yujin - Frame card</h3>
-                                <p>Seasonal release</p>
-                                <div><span class="mini-chip">Hot</span><strong>₱990</strong></div>
-                            </div>
-                        </article>
+                        @foreach ($trendingCards as $card)
+                            <article class="market-item">
+                                <div class="market-thumb {{ $card->thumbnail_style }}"></div>
+                                <div class="market-meta">
+                                    <h3>{{ $card->title }}</h3>
+                                    <p>{{ $card->edition ?: $card->album }}</p>
+                                    <div><span class="mini-chip">{{ $card->rarity }}</span><strong>{{ $formatMoney($card->market_value) }}</strong></div>
+                                </div>
+                            </article>
+                        @endforeach
                     </div>
                 </section>
             </section>
