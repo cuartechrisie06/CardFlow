@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'username', 'email', 'password'])]
@@ -18,11 +17,6 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -34,6 +28,16 @@ class User extends Authenticatable
     public function userCards(): HasMany
     {
         return $this->hasMany(UserCard::class);
+    }
+
+    public function publicMarketplaceCards(): HasMany
+    {
+        return $this->userCards()->visibleInMarketplace();
+    }
+
+    public function marketplaceListings(): HasMany
+    {
+        return $this->hasMany(MarketplaceListing::class);
     }
 
     public function trades(): HasMany
@@ -49,5 +53,30 @@ class User extends Authenticatable
     public function activities(): HasMany
     {
         return $this->hasMany(Activity::class);
+    }
+
+    public function conversationsStarted(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'user_one_id');
+    }
+
+    public function conversationsReceived(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'user_two_id');
+    }
+
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    public function receivedMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'receiver_id');
+    }
+
+    public function savedViews(): HasMany
+    {
+        return $this->hasMany(SavedView::class);
     }
 }

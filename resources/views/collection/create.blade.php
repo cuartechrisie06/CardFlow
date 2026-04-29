@@ -27,27 +27,14 @@
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
                     <a href="{{ route('collection.index') }}" class="sidebar-link is-active">My Collection</a>
-                    <a href="#" class="sidebar-link">Marketplace</a>
-                    <a href="#" class="sidebar-link">Wishlist</a>
+                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
+                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
                     <a href="#" class="sidebar-link">Messages</a>
-                    <a href="#" class="sidebar-link">Explorer</a>
-                    <a href="#" class="sidebar-link">Insights</a>
+                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
+                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
                 </nav>
 
-                <div class="sidebar-collector">
-                    <span class="collector-label">Collector</span>
-                    <div class="collector-card">
-                        <div class="collector-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</div>
-                        <div class="collector-details">
-                            <p title="{{ $user->name }}">{{ $user->name }}</p>
-                            <span title="{{ $user->email }}">{{ $user->email }}</span>
-                        </div>
-                    </div>
-                    <form action="{{ route('logout') }}" method="POST" class="logout-form">
-                        @csrf
-                        <button type="submit" class="logout-button">Log out</button>
-                    </form>
-                </div>
+                @include('partials.sidebar-collector', ['user' => $user])
             </aside>
 
             <section class="dashboard-main">
@@ -155,8 +142,24 @@
                         </div>
 
                         <label class="remember-row create-checkbox">
+                            <input type="checkbox" name="is_public" value="1" @checked(old('is_public'))>
+                            <span>Show this card on your public marketplace profile</span>
+                        </label>
+
+                        <label class="remember-row create-checkbox">
                             <input type="checkbox" name="is_for_trade" value="1" @checked(old('is_for_trade'))>
                             <span>Mark this card as available for trade</span>
+                        </label>
+
+                        <label class="remember-row create-checkbox">
+                            <input type="checkbox" name="is_for_sale" value="1" @checked(old('is_for_sale'))>
+                            <span>Mark this card as available for sale</span>
+                        </label>
+
+                        <label class="field-group">
+                            <span>Listing Price</span>
+                            <input type="number" name="listing_price" value="{{ old('listing_price') }}" min="0" step="0.01" placeholder="1500">
+                            @error('listing_price') <small class="field-error">{{ $message }}</small> @enderror
                         </label>
 
                         <div class="create-form-actions">

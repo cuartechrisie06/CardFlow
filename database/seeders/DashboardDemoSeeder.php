@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Activity;
 use App\Models\Card;
+use App\Models\MarketplaceListing;
 use App\Models\Trade;
 use App\Models\User;
 use App\Models\UserCard;
@@ -44,10 +45,20 @@ class DashboardDemoSeeder extends Seeder
         $secondaryUser = User::query()->updateOrCreate(
             ['email' => 'other@cardflow.test'],
             [
-            'name' => 'Other Collector',
-            'username' => 'other_collector',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password'),
+                'name' => 'Other Collector',
+                'username' => 'other_collector',
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'),
+            ]
+        );
+
+        $thirdUser = User::query()->updateOrCreate(
+            ['email' => 'seller@cardflow.test'],
+            [
+                'name' => 'Market Seller',
+                'username' => 'market_seller',
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'),
             ]
         );
 
@@ -55,11 +66,18 @@ class DashboardDemoSeeder extends Seeder
         $demoUser->trades()->delete();
         $demoUser->wishlistItems()->delete();
         $demoUser->activities()->delete();
+        $demoUser->marketplaceListings()->delete();
 
         $secondaryUser->userCards()->delete();
         $secondaryUser->trades()->delete();
         $secondaryUser->wishlistItems()->delete();
         $secondaryUser->activities()->delete();
+        $secondaryUser->marketplaceListings()->delete();
+        $thirdUser->userCards()->delete();
+        $thirdUser->trades()->delete();
+        $thirdUser->wishlistItems()->delete();
+        $thirdUser->activities()->delete();
+        $thirdUser->marketplaceListings()->delete();
 
         $collectionPlan = [
             [0, 1380, now()->subMonths(5)->addDays(3), true],
@@ -75,15 +93,71 @@ class DashboardDemoSeeder extends Seeder
         ];
 
         foreach ($collectionPlan as [$cardIndex, $value, $acquiredAt, $isForTrade]) {
-            UserCard::factory()->for($demoUser)->for($cards[$cardIndex])->create([
+            $listingState = UserCard::deriveListingState($isForTrade, $isForTrade, ! $isForTrade && $value >= 1200);
+
+            $userCard = UserCard::factory()->for($demoUser)->for($cards[$cardIndex])->create([
                 'estimated_value' => $value,
                 'purchase_price' => round($value * 0.82, 2),
                 'acquired_at' => $acquiredAt,
+                'is_listed' => $listingState['is_listed'],
+                'marketplace_status' => $listingState['marketplace_status'],
+                'is_public' => $isForTrade,
                 'is_for_trade' => $isForTrade,
+                'is_for_sale' => ! $isForTrade && $value >= 1200,
+                'listing_price' => $isForTrade || $value >= 1200 ? $value : null,
             ]);
+
+            if ($userCard->is_listed) {
+                MarketplaceListing::factory()->create([
+                    'user_id' => $demoUser->id,
+                    'user_card_id' => $userCard->id,
+                    'card_id' => $userCard->card_id,
+                ]);
+            }
         }
 
-        UserCard::factory(4)->for($secondaryUser)->create();
+        $secondaryCards = UserCard::factory(4)->for($secondaryUser)->create();
+        $secondaryCards->take(2)->each(function (UserCard $userCard) use ($secondaryUser) {
+            $userCard->update([
+                'is_listed' => true,
+                'marketplace_status' => 'active',
+                'is_public' => true,
+                'is_for_sale' => true,
+                'listing_price' => $userCard->estimated_value,
+            ]);
+
+            MarketplaceListing::factory()->create([
+                'user_id' => $secondaryUser->id,
+                'user_card_id' => $userCard->id,
+                'card_id' => $userCard->card_id,
+            ]);
+        });
+
+        $thirdCards = UserCard::factory(3)->for($thirdUser)->create();
+        $thirdCards->take(2)->each(function (UserCard $userCard) use ($thirdUser) {
+            $userCard->update([
+                'is_listed' => true,
+                'marketplace_status' => 'active',
+                'is_public' => true,
+                'is_for_trade' => true,
+                'listing_price' => $userCard->estimated_value,
+            ]);
+
+            MarketplaceListing::factory()->create([
+                'user_id' => $thirdUser->id,
+                'user_card_id' => $userCard->id,
+                'card_id' => $userCard->card_id,
+            ]);
+        });
+
+        UserCard::factory()->for($thirdUser)->create([
+            'is_listed' => false,
+            'marketplace_status' => 'draft',
+            'is_public' => false,
+            'is_for_trade' => false,
+            'is_for_sale' => false,
+            'listing_price' => null,
+        ]);
 
         collect([
             ['card' => 0, 'status' => 'completed', 'created_at' => now()->startOfMonth()->addDays(1), 'replied_at' => now()->subDays(18), 'completed_at' => now()->subDays(14)],

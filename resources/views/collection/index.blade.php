@@ -28,27 +28,14 @@
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
                     <a href="{{ route('collection.index') }}" class="sidebar-link is-active">My Collection</a>
-                    <a href="#" class="sidebar-link">Marketplace</a>
-                    <a href="#" class="sidebar-link">Wishlist</a>
-                    <a href="#" class="sidebar-link">Messages</a>
-                    <a href="#" class="sidebar-link">Explorer</a>
-                    <a href="#" class="sidebar-link">Insights</a>
+                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
+                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
+                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
+                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
+                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
                 </nav>
 
-                <div class="sidebar-collector">
-                    <span class="collector-label">Collector</span>
-                    <div class="collector-card">
-                        <div class="collector-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</div>
-                        <div class="collector-details">
-                            <p title="{{ $user->name }}">{{ $user->name }}</p>
-                            <span title="{{ $user->email }}">{{ $user->email }}</span>
-                        </div>
-                    </div>
-                    <form action="{{ route('logout') }}" method="POST" class="logout-form">
-                        @csrf
-                        <button type="submit" class="logout-button">Log out</button>
-                    </form>
-                </div>
+                @include('partials.sidebar-collector', ['user' => $user])
             </aside>
 
             <section class="dashboard-main">
@@ -88,6 +75,11 @@
                                 $badge = $card->edition ?: $card->rarity;
                                 $accent = $card->rarity;
                                 $photoUrl = $item->photo_path ? \Illuminate\Support\Facades\Storage::url($item->photo_path) : null;
+                                $visibility = collect([
+                                    $item->is_public ? 'Public' : 'Private',
+                                    $item->is_for_trade ? 'Trade' : null,
+                                    $item->is_for_sale ? 'Sale' : null,
+                                ])->filter()->implode(' • ');
                             @endphp
                             <a href="{{ route('collection.edit', $item) }}" class="collection-item-link">
                             <article class="collection-item">
@@ -100,6 +92,7 @@
                                     <p>{{ strtoupper($card->artist) }}</p>
                                     <p>{{ $card->album ?: 'Standalone release' }}</p>
                                     <p>{{ $item->condition }}</p>
+                                    <p>{{ $visibility }}</p>
                                     <div class="collection-meta-footer">
                                         <span class="mini-chip">{{ $accent }}</span>
                                         <strong>1 copy</strong>

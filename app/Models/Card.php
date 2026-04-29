@@ -46,4 +46,9 @@ class Card extends Model
     {
         return $this->hasMany(WishlistItem::class);
     }
+
+    public function marketplaceListings(): HasMany
+    {
+        return $this->hasMany(MarketplaceListing::class);
+    }
 }

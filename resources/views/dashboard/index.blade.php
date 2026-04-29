@@ -28,27 +28,14 @@
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link is-active">Dashboard</a>
                     <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
-                    <a href="#" class="sidebar-link">Marketplace</a>
-                    <a href="#" class="sidebar-link">Alerts</a>
-                    <a href="#" class="sidebar-link">Messages</a>
-                    <a href="#" class="sidebar-link">Explore</a>
-                    <a href="#" class="sidebar-link">Insights</a>
+                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
+                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
+                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
+                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
+                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
                 </nav>
 
-                <div class="sidebar-collector">
-                    <span class="collector-label">Collector</span>
-                    <div class="collector-card">
-                        <div class="collector-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</div>
-                        <div class="collector-details">
-                            <p title="{{ $user->name }}">{{ $user->name }}</p>
-                            <span title="{{ $user->email }}">{{ $user->email }}</span>
-                        </div>
-                    </div>
-                    <form action="{{ route('logout') }}" method="POST" class="logout-form">
-                        @csrf
-                        <button type="submit" class="logout-button">Log out</button>
-                    </form>
-                </div>
+                @include('partials.sidebar-collector', ['user' => $user])
             </aside>
 
             <section class="dashboard-main">
