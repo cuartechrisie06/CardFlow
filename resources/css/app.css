@@ -573,6 +573,58 @@ body.dashboard-body {
     color: #fff8f3;
     box-shadow: 0 24px 60px rgba(111, 72, 49, 0.2);
 }
+/* resources/css/app.css */
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 100%;
+    background-color: #D8B5A5; /* Sidebar background color */
+    padding: 20px;
+    z-index: 100;
+}
+
+/* Main content */
+.main-content {
+    margin-left: 250px; /* Push content to the right */
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+/* Profile and Menu styles */
+.sidebar .profile {
+    text-align: center;
+}
+
+.sidebar .profile img {
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+}
+
+/* Sidebar Links */
+.sidebar ul.menu {
+    list-style: none;
+    padding-left: 0;
+}
+
+.sidebar ul.menu li {
+    margin: 20px 0;
+}
+
+.sidebar ul.menu li a {
+    text-decoration: none;
+    color: #333;
+    font-size: 16px;
+}
+
+/* Sidebar hover effect */
+.sidebar ul.menu li a:hover {
+    color: #007bff;
+}
 
 .sidebar-brand {
     display: flex;
@@ -2583,6 +2635,692 @@ body.dashboard-body {
     }
 
     .status-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Main Content for Card Details */
+.dashboard-CardDetails/main {
+    margin-left: 260px; /* Adjust the margin to accommodate the fixed sidebar */
+    padding: 20px;
+    background-color: #f3f0e6;
+    border-radius: 10px;
+    flex: 1;
+}
+
+/* Card Details Section */
+.card-details-container {
+    display: flex;
+    gap: 30px; /* Space between the card image and details */
+    align-items: flex-start;
+    margin-top: 20px;
+}
+
+/* Card Image Section */
+.card-image {
+    width: 300px;
+    height: 300px;
+    overflow: hidden;
+    background-color: #e8e1d9;
+    border-radius: 10px;
+}
+
+.card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Card Information Section */
+.card-info {
+    flex: 1;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* Info Rows for Card Details */
+.info-row {
+    margin-bottom: 15px; /* Space between each row */
+}
+
+.info-label {
+    font-weight: 700; /* Bold label */
+    color: #6f4b3b; /* Dark brown for the label */
+}
+
+.info-value {
+    font-weight: 500;
+    color: #3a2a1d; /* Slightly darker color for the value */
+    margin-top: 5px;
+}
+
+/* Back Button */
+.back-btn {
+    align-self: flex-end; /* Align button to the right */
+    margin-top: 20px;
+    background-color: #a76e53;
+    color: #fff;
+    font-size: 14px;
+    padding: 8px 15px;
+    border-radius: 10px;
+    text-decoration: none;
+}
+
+/* Fixed Edit Button */
+.edit-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #8c6a48;
+    color: #fff;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    text-decoration: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* =========================================================
+   STATS PAGE - PRINT SUMMARY
+   File source: resources/views/stats/print.blade.php
+   ========================================================= */
+
+.stats-print-body {
+    font-family: Arial, sans-serif;
+    background: #f7efe7;
+    color: #2f2422;
+    padding: 40px;
+}
+
+.stats-print-toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.stats-print-button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 12px;
+    background: #a66b4d;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.stats-print-back-button {
+    display: inline-block;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #a66b4d;
+    border: 1px solid #d9b9a6;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.stats-print-back-button:hover {
+    background: #fff7f1;
+}
+
+.stats-print-report {
+    background: #fffaf5;
+    border-radius: 24px;
+    padding: 32px;
+    max-width: 850px;
+    margin: auto;
+    box-shadow: 0 20px 60px rgba(50, 35, 28, 0.12);
+}
+
+.stats-print-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    color: #bd927b;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.stats-print-title {
+    margin: 8px 0 4px;
+    font-size: 34px;
+}
+
+.stats-print-muted {
+    color: #7a6862;
+    margin-bottom: 28px;
+}
+
+.stats-print-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.stats-print-card {
+    border: 1px solid #eaded7;
+    border-radius: 18px;
+    padding: 20px;
+    background: white;
+}
+
+.stats-print-label {
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 11px;
+    color: #bd927b;
+    font-weight: bold;
+}
+
+.stats-print-value {
+    margin-top: 10px;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+@media print {
+    .stats-print-body {
+        background: white;
+        padding: 0;
+    }
+
+    .stats-print-toolbar {
+        display: none;
+    }
+
+    .stats-print-report {
+        box-shadow: none;
+        max-width: none;
+        border-radius: 0;
+    }
+}
+
+.stats-share-form {
+    width: 100%;
+}
+
+.stats-share-form .dashboard-search-submit {
+    width: 100%;
+}
+
+/* =========================================================
+   STATS PAGE - SHARE SNAPSHOT
+   ========================================================= */
+
+.stats-share-form {
+    width: 100%;
+}
+
+.stats-share-form .dashboard-search-submit {
+    width: 100%;
+}
+
+.stats-snapshot-box {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(90, 62, 52, 0.12);
+}
+
+.stats-snapshot-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.stats-snapshot-header strong {
+    color: #2f2422;
+    font-size: 14px;
+}
+
+.stats-snapshot-header span {
+    color: #7a6862;
+    font-size: 12px;
+}
+
+.stats-snapshot-text {
+    width: 100%;
+    min-height: 140px;
+    resize: vertical;
+    border: 1px solid rgba(90, 62, 52, 0.14);
+    border-radius: 14px;
+    padding: 12px;
+    background: #fffaf5;
+    color: #2f2422;
+    font: inherit;
+    line-height: 1.5;
+}
+
+.sidebar-profile-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+}
+
+.sidebar-profile-link:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.03);
+}
+
+.dashboard-add-card {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* =========================================================
+   MARKETPLACE - CREATE LISTING
+   ========================================================= */
+
+.marketplace-create-card {
+    padding: 32px;
+    max-width: 760px;
+}
+
+.marketplace-create-form {
+    display: grid;
+    gap: 20px;
+}
+
+.form-field {
+    display: grid;
+    gap: 8px;
+}
+
+.form-field span {
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 11px;
+    color: #bd927b;
+    font-weight: 700;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    border: 1px solid rgba(90, 62, 52, 0.14);
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.75);
+    color: #2f2422;
+    font: inherit;
+    outline: none;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: #a66b4d;
+    box-shadow: 0 0 0 4px rgba(166, 107, 77, 0.12);
+}
+
+.form-error-box {
+    margin-bottom: 20px;
+    padding: 16px;
+    border-radius: 16px;
+    background: #fff4f0;
+    border: 1px solid rgba(180, 80, 60, 0.25);
+    color: #6c2f24;
+}
+
+.form-error-box ul {
+    margin: 8px 0 0;
+}
+
+.empty-state {
+    padding: 18px;
+    margin-bottom: 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.6);
+    color: #7a6862;
+}
+.dashboard-add-card {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+/* =========================================================
+   MESSAGES - CREATE MESSAGE
+   ========================================================= */
+
+.message-create-card {
+    padding: 32px;
+    max-width: 760px;
+}
+
+.message-create-form {
+    display: grid;
+    gap: 20px;
+}
+
+.form-field {
+    display: grid;
+    gap: 8px;
+}
+
+.form-field span {
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 11px;
+    color: #bd927b;
+    font-weight: 700;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    border: 1px solid rgba(90, 62, 52, 0.14);
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.75);
+    color: #2f2422;
+    font: inherit;
+    outline: none;
+}
+
+.form-field textarea {
+    resize: vertical;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: #a66b4d;
+    box-shadow: 0 0 0 4px rgba(166, 107, 77, 0.12);
+}
+
+.form-error-box {
+    margin-bottom: 20px;
+    padding: 16px;
+    border-radius: 16px;
+    background: #fff4f0;
+    border: 1px solid rgba(180, 80, 60, 0.25);
+    color: #6c2f24;
+}
+
+.form-error-box ul {
+    margin: 8px 0 0;
+}
+
+.empty-state {
+    padding: 18px;
+    margin-bottom: 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.6);
+    color: #7a6862;
+}
+
+.my-listing-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.my-listing-edit,
+.my-listing-delete {
+    border: none;
+    border-radius: 14px;
+    padding: 10px 16px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.my-listing-edit {
+    background: #a66b4d;
+    color: #ffffff;
+}
+
+.my-listing-delete {
+    background: #fff4f0;
+    color: #9f3f2d;
+    border: 1px solid rgba(159, 63, 45, 0.2);
+}
+
+/* =========================================================
+   MARKETPLACE - DELETE CONFIRMATION MODAL
+   ========================================================= */
+
+.delete-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.delete-modal.is-open {
+    display: flex;
+}
+
+.delete-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(47, 36, 34, 0.58);
+    backdrop-filter: blur(5px);
+}
+
+.delete-modal-card {
+    position: relative;
+    width: min(440px, 100%);
+    padding: 28px;
+    border-radius: 28px;
+    background: #fffaf5;
+    border: 1px solid rgba(90, 62, 52, 0.14);
+    box-shadow: 0 30px 80px rgba(47, 36, 34, 0.28);
+    color: #2f2422;
+    animation: deleteModalIn 0.18s ease-out;
+}
+
+.delete-modal-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    background: #fff4f0;
+    color: #9f3f2d;
+    border: 1px solid rgba(159, 63, 45, 0.2);
+    font-weight: 800;
+    font-size: 22px;
+}
+
+.delete-modal-eyebrow {
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 11px;
+    color: #bd927b;
+    font-weight: 800;
+}
+
+.delete-modal-card h2 {
+    margin: 0;
+    font-size: 26px;
+}
+
+.delete-modal-text {
+    margin: 10px 0 22px;
+    color: #7a6862;
+    line-height: 1.5;
+}
+
+.delete-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.delete-modal-cancel,
+.delete-modal-confirm {
+    border: none;
+    border-radius: 16px;
+    padding: 12px 16px;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.delete-modal-cancel {
+    background: #ffffff;
+    color: #6f5a52;
+    border: 1px solid rgba(90, 62, 52, 0.14);
+}
+
+.delete-modal-confirm {
+    background: #9f3f2d;
+    color: #ffffff;
+}
+
+@keyframes deleteModalIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+.dashboard-search-submit,
+.dashboard-add-card {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+/* =========================================================
+   PROFILE - MARKETPLACE LISTINGS
+   ========================================================= */
+
+.profile-listings-section {
+    margin-top: 28px;
+    padding: 32px;
+}
+
+.section-heading-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.section-heading-row h2 {
+    margin: 4px 0;
+    font-size: 28px;
+}
+
+.profile-listing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.profile-listing-card {
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(90, 62, 52, 0.12);
+    overflow: hidden;
+    box-shadow: 0 18px 40px rgba(47, 36, 34, 0.08);
+}
+
+.profile-listing-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.profile-listing-thumb {
+    height: 190px;
+    background-size: cover;
+    background-position: center;
+    background-color: #eaded7;
+}
+
+.profile-listing-body {
+    padding: 18px;
+}
+
+.profile-listing-body h3 {
+    margin: 12px 0 4px;
+    font-size: 20px;
+}
+
+.profile-listing-body p {
+    margin: 0;
+    color: #7a6862;
+}
+
+.profile-listing-meta {
+    display: grid;
+    gap: 4px;
+    margin-top: 14px;
+    color: #6f5a52;
+    font-size: 14px;
+}
+
+.my-listing-actions {
+    display: flex;
+    gap: 10px;
+    padding: 0 18px 18px;
+}
+
+.my-listing-edit,
+.my-listing-delete {
+    border: none;
+    border-radius: 14px;
+    padding: 10px 16px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.my-listing-edit {
+    background: #a66b4d;
+    color: #ffffff;
+}
+
+.my-listing-delete {
+    background: #fff4f0;
+    color: #9f3f2d;
+    border: 1px solid rgba(159, 63, 45, 0.2);
+}
+
+@media (max-width: 1100px) {
+    .profile-listing-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .section-heading-row {
+        flex-direction: column;
+    }
+
+    .profile-listing-grid {
         grid-template-columns: 1fr;
     }
 }

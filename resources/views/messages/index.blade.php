@@ -29,13 +29,16 @@
             data-compose-listing-id="{{ $composeListingId }}"
         >
             <aside class="dashboard-sidebar">
-                <div class="sidebar-brand">
+                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
+                    class="sidebar-brand sidebar-profile-link">
+
                     <div class="sidebar-avatar"></div>
-                    <div>
-                        <p>{{ $user->name }}</p>
-                        <span>{{ '@'.$username }}</span>
+
+                <div>
+                    <p>{{ $user->name }}</p>
+                        <span>{{ '@' . $username }}</span>
                     </div>
-                </div>
+                </a>
 
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
@@ -64,7 +67,9 @@
                             <input type="search" name="q" value="{{ $search }}" placeholder="Search chats, users, listings...">
                         </label>
                         <button type="submit" class="dashboard-search-submit">Search</button>
-                        <button type="button" class="dashboard-add-card" data-compose-open>New message</button>
+                        <a href="{{ route('messages.create') }}" class="dashboard-add-card">
+                            New message
+                        </a>
                     </form>
                 </header>
 

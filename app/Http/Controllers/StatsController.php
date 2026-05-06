@@ -8,6 +8,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StatsController extends Controller
 {
@@ -205,4 +206,128 @@ class StatsController extends Controller
             'completion_rate' => $completionRate,
         ];
     }
+
+    public function exportPdf(Request $request)
+{
+    $user = $request->user();
+
+    $totalValue = (float) $user->userCards()
+        ->join('cards', 'cards.id', '=', 'user_cards.card_id')
+        ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, cards.market_value, 0)'));
+
+    $tradeBase = $user->trades()->count();
+
+    $completedTrades = $user->trades()
+        ->where('status', 'completed')
+        ->count();
+
+    $completionRate = $tradeBase > 0
+        ? round(($completedTrades / $tradeBase) * 100)
+        : 0;
+
+    $successfulTradesThisWeek = $user->trades()
+        ->where('status', 'completed')
+        ->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
+        ->count();
+
+    return view('stats.print', [
+        'user' => $user,
+        'generatedAt' => now(),
+        'metrics' => [
+            'total_value' => round($totalValue),
+            'completion_rate' => $completionRate,
+            'successful_trades' => $successfulTradesThisWeek,
+            'average_trade_score' => 0,
+            'trade_total' => $tradeBase,
+        ],
+    ]);
+}
+
+public function exportCsv(Request $request): StreamedResponse
+{
+    $user = $request->user();
+
+    $filename = 'collection-data-' . now()->format('Y-m-d-His') . '.csv';
+
+    return response()->streamDownload(function () use ($user) {
+        $handle = fopen('php://output', 'w');
+
+        // Makes the CSV more Excel-friendly.
+        fwrite($handle, "\xEF\xBB\xBF");
+
+        fputcsv($handle, [
+            'Card Title',
+            'Artist / Group',
+            'Rarity',
+            'Condition',
+            'Market Value',
+            'Estimated Value',
+            'Acquired Date',
+            'Created Date',
+        ]);
+
+        $user->userCards()
+            ->with('card')
+            ->latest()
+            ->chunk(200, function ($userCards) use ($handle) {
+                foreach ($userCards as $userCard) {
+                    $card = $userCard->card;
+
+                    fputcsv($handle, [
+                        $card->title ?? $card->name ?? 'Untitled',
+                        $card->artist ?? $card->group_name ?? 'Ungrouped',
+                        $card->rarity ?? 'Unspecified',
+                        $userCard->condition ?? 'Unspecified',
+                        $card->market_value ?? 0,
+                        $userCard->estimated_value ?? $card->market_value ?? 0,
+                        optional($userCard->acquired_at)->format('Y-m-d'),
+                        optional($userCard->created_at)->format('Y-m-d'),
+                    ]);
+                }
+            });
+
+        fclose($handle);
+    }, $filename, [
+        'Content-Type' => 'text/csv; charset=UTF-8',
+    ]);
+}
+
+public function shareSnapshot(Request $request)
+{
+    $user = $request->user();
+
+    $totalValue = (float) $user->userCards()
+        ->join('cards', 'cards.id', '=', 'user_cards.card_id')
+        ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, cards.market_value, 0)'));
+
+    $totalCards = $user->userCards()->count();
+
+    $tradeTotal = $user->trades()->count();
+
+    $completedTrades = $user->trades()
+        ->where('status', 'completed')
+        ->count();
+
+    $completionRate = $tradeTotal > 0
+        ? round(($completedTrades / $tradeTotal) * 100)
+        : 0;
+
+    $successfulTradesThisWeek = $user->trades()
+        ->where('status', 'completed')
+        ->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
+        ->count();
+
+    $snapshot = "Collection Snapshot\n"
+        . "Owner: " . ($user->name ?? $user->username ?? 'User') . "\n"
+        . "Generated: " . now()->format('F d, Y h:i A') . "\n\n"
+        . "Total Value: PHP " . number_format($totalValue) . "\n"
+        . "Total Cards: " . $totalCards . "\n"
+        . "Completion Rate: " . $completionRate . "%\n"
+        . "Successful Trades This Week: " . $successfulTradesThisWeek . "\n"
+        . "Total Trades Tracked: " . $tradeTotal . "\n";
+
+    return redirect()
+        ->route('stats.index')
+        ->with('snapshot', $snapshot);
+}
 }

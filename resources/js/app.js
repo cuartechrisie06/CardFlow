@@ -97,3 +97,43 @@ if (accountMenus.length > 0) {
 }
 
 initRealtimeMessages();
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('deleteListingModal');
+    const form = document.getElementById('deleteListingForm');
+    const openButtons = document.querySelectorAll('.js-open-delete-modal');
+    const closeButtons = document.querySelectorAll('.js-close-delete-modal');
+
+    if (!modal || !form) {
+        return;
+    }
+
+    openButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const deleteUrl = button.dataset.deleteUrl;
+
+            if (!deleteUrl) {
+                return;
+            }
+
+            form.setAttribute('action', deleteUrl);
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+        });
+    });
+
+    closeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+            form.removeAttribute('action');
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+            form.removeAttribute('action');
+        }
+    });
+});

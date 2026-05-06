@@ -12,6 +12,10 @@ use Illuminate\Validation\Rules\Password;
 
 class RegisteredUserController extends Controller
 {
+    public function create()
+    {
+    return view('auth.register');
+    }
     public function store(Request $request): RedirectResponse
     {
         $validated = Validator::make(

@@ -11,12 +11,29 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
+
 class CollectionCardController extends Controller
 {
     public function create(): View
     {
         return view('collection.create');
     }
+
+    public function show(UserCard $userCard)
+{
+    // Load the related 'card' data
+    $userCard->load('card');
+
+    // Determine the image path
+    $imagePath = $userCard->photo_path
+        ? asset('storage/' . $userCard->photo_path)
+        : asset('storage/cards/' . ($userCard->card->thumbnail_style ?? 'default.jpg'));
+
+    // Pass the data (including image path) to the view
+    return view('cards.show', compact('userCard', 'imagePath'));
+}
+
+    
 
     public function store(Request $request): RedirectResponse
     {
@@ -203,4 +220,5 @@ class CollectionCardController extends Controller
             ],
         );
     }
+    
 }

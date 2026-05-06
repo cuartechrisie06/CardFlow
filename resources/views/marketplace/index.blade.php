@@ -16,13 +16,16 @@
         @endphp
         <main class="dashboard-shell">
             <aside class="dashboard-sidebar">
-                <div class="sidebar-brand">
+                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
+                    class="sidebar-brand sidebar-profile-link">
+
                     <div class="sidebar-avatar"></div>
+
                     <div>
                         <p>{{ $user->name }}</p>
-                        <span>{{ '@'.$username }}</span>
-                    </div>
-                </div>
+                    <span>{{ '@' . $username }}</span>
+                 </div>
+                </a>
 
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
@@ -50,7 +53,9 @@
                             <input type="search" name="q" value="{{ $filters['search'] }}" placeholder="Search marketplace...">
                         </label>
                         <button type="submit" class="dashboard-search-submit">Search</button>
-                        <a href="{{ route('collection.create') }}" class="dashboard-add-card">Post listing</a>
+                        <a href="{{ route('marketplace.create') }}" class="dashboard-add-card">
+                            Post listing
+                        </a>
                     </form>
                 </header>
 

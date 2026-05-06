@@ -17,13 +17,16 @@
         @endphp
         <main class="dashboard-shell">
             <aside class="dashboard-sidebar">
-                <div class="sidebar-brand">
+                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
+                    class="sidebar-brand sidebar-profile-link">
+
                     <div class="sidebar-avatar"></div>
-                    <div>
-                        <p>{{ $user->name }}</p>
-                        <span>{{ '@'.$username }}</span>
-                    </div>
+
+                <div>
+                     <p>{{ $user->name }}</p>
+                    <span>{{ '@' . $username }}</span>
                 </div>
+                </a>
 
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
@@ -81,8 +84,8 @@
                                     $item->is_for_sale ? 'Sale' : null,
                                 ])->filter()->implode(' • ');
                             @endphp
-                            <a href="{{ route('collection.edit', $item) }}" class="collection-item-link">
-                            <article class="collection-item">
+                            <a href="{{ route('collection.show', $item) }}" class="collection-item-link">
+                                <article class="collection-item">
                                 <div class="collection-thumb {{ $photoUrl ? 'collection-thumb-photo' : $card->thumbnail_style }}" @if ($photoUrl) style="background-image: url('{{ $photoUrl }}');" @endif>
                                     <span class="collection-pill collection-pill-left">{{ $item->condition }}</span>
                                     <span class="collection-pill collection-pill-right">{{ $badge }}</span>

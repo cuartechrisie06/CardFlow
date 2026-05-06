@@ -69,7 +69,167 @@
                         <div class="stat-note">tracked wants</div>
                     </article>
                 </section>
+                <section class="dashboard-card profile-listings-section">
+                        <div class="section-heading-row">
+                            <div>
+                                <p class="dashboard-kicker">Marketplace listings</p>
+                                <h2>{{ auth()->id() === $user->id ? 'My posted listings' : $user->name . "'s posted listings" }}</h2>
+                                <p class="dashboard-intro">
+                                    Cards currently visible in the marketplace.
+                                </p>
+                            </div>
+
+                            @if (auth()->id() === $user->id)
+                                <a href="{{ route('marketplace.create') }}" class="dashboard-add-card">
+                                    Post new listing
+                                </a>
+                            @endif
+                        </div>
+
+                        <div class="profile-listing-grid">
+                            @forelse ($marketplaceListings as $listing)
+                                @php
+                                    $userCard = $listing->userCard;
+                                    $card = $listing->card ?? $userCard?->card;
+
+                                    $photoUrl = $userCard?->photo_path
+                                        ? \Illuminate\Support\Facades\Storage::url($userCard->photo_path)
+                                        : null;
+
+                                    $listingType = $userCard?->is_for_trade
+                                        ? 'Trade'
+                                        : ($userCard?->is_for_sale ? 'Sale' : 'Showcase');
+                                @endphp
+
+                                <article class="profile-listing-card">
+                                    <a href="{{ route('marketplace.cards.show', $listing) }}" class="profile-listing-link">
+                                        <div
+                                            class="profile-listing-thumb {{ $photoUrl ? 'collection-thumb-photo' : ($card->thumbnail_style ?? '') }}"
+                                            @if ($photoUrl)
+                                                style="background-image: url('{{ $photoUrl }}');"
+                                            @endif
+                                        ></div>
+
+                                        <div class="profile-listing-body">
+                                            <span class="mini-chip">{{ $listingType }}</span>
+
+                                            <h3>{{ $card->title ?? 'Untitled card' }}</h3>
+
+                                            <p>{{ $card->artist ?? 'Unknown artist' }}</p>
+
+                                            <div class="profile-listing-meta">
+                                                <span>Condition: {{ $userCard->condition ?? 'N/A' }}</span>
+
+                                                @if ($userCard?->listing_price)
+                                                    <span>PHP {{ number_format((float) $userCard->listing_price, 0) }}</span>
+                                                @else
+                                                    <span>No price set</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </a>
+
+                                    @if (auth()->id() === $listing->user_id)
+                                        <div class="my-listing-actions">
+                                            <a href="{{ route('marketplace.edit', $listing) }}" class="my-listing-edit">
+                                                Edit
+                                            </a>
+
+                                            <button
+                                                type="button"
+                                                class="my-listing-delete js-open-delete-modal"
+                                                data-delete-url="{{ route('marketplace.destroy', $listing) }}"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    @endif
+                                </article>
+                            @empty
+                                <div class="empty-state">
+                                    No marketplace listings posted yet.
+                                </div>
+                            @endforelse
+                        </div>
+                    </section>
             </section>
         </main>
+        <div class="delete-modal" id="deleteListingModal" aria-hidden="true">
+            <div class="delete-modal-backdrop js-close-delete-modal"></div>
+
+            <div
+                class="delete-modal-card"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="deleteListingTitle"
+            >
+                <div class="delete-modal-icon">!</div>
+
+                <div>
+                    <p class="delete-modal-eyebrow">Confirm action</p>
+                    <h2 id="deleteListingTitle">Remove this listing?</h2>
+                    <p class="delete-modal-text">
+                        This will remove the card from the marketplace only. Your card will stay safely in your collection.
+                    </p>
+                </div>
+
+                <form method="POST" id="deleteListingForm">
+                    @csrf
+                    @method('DELETE')
+
+                    <div class="delete-modal-actions">
+                        <button type="button" class="delete-modal-cancel js-close-delete-modal">
+                            Cancel
+                        </button>
+
+                        <button type="submit" class="delete-modal-confirm">
+                            Yes, remove listing
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const modal = document.getElementById('deleteListingModal');
+                const form = document.getElementById('deleteListingForm');
+                const openButtons = document.querySelectorAll('.js-open-delete-modal');
+                const closeButtons = document.querySelectorAll('.js-close-delete-modal');
+
+                if (!modal || !form) {
+                    return;
+                }
+
+                openButtons.forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        const deleteUrl = button.getAttribute('data-delete-url');
+
+                        if (!deleteUrl) {
+                            return;
+                        }
+
+                        form.setAttribute('action', deleteUrl);
+                        modal.classList.add('is-open');
+                        modal.setAttribute('aria-hidden', 'false');
+                    });
+                });
+
+                closeButtons.forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        modal.classList.remove('is-open');
+                        modal.setAttribute('aria-hidden', 'true');
+                        form.removeAttribute('action');
+                    });
+                });
+
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+                        modal.classList.remove('is-open');
+                        modal.setAttribute('aria-hidden', 'true');
+                        form.removeAttribute('action');
+                    }
+                });
+            });
+        </script>
     </body>
 </html>

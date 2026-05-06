@@ -128,7 +128,7 @@
                         <h2>Start your trading hub</h2>
                         <p class="auth-copy">Set up your profile and start organizing your photocard collection in one place.</p>
 
-                        <form class="auth-form" action="{{ route('register') }}" method="POST">
+                        <form class="auth-form" action="{{ route('register.create') }}" method="POST">
                             @csrf
                             <div class="field-two-up">
                                 <label class="field-group">

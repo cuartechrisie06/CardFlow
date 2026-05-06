@@ -7,6 +7,8 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Models\MarketplaceListing;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -14,8 +16,16 @@ class ProfileController extends Controller
     {
         $user->loadCount(['userCards', 'marketplaceListings', 'wishlistItems']);
 
+        $marketplaceListings = MarketplaceListing::query()
+    ->with(['card', 'userCard'])
+    ->where('user_id', $user->id)
+    ->activeVisible()
+    ->latest('updated_at')
+    ->get();
+
         return view('profile.show', [
             'profileUser' => $user,
+            'marketplaceListings' => $marketplaceListings,
         ]);
     }
 

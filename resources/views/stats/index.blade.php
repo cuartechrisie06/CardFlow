@@ -17,13 +17,16 @@
         @endphp
         <main class="dashboard-shell">
             <aside class="dashboard-sidebar">
-                <div class="sidebar-brand">
+                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
+                    class="sidebar-brand sidebar-profile-link">
+
                     <div class="sidebar-avatar"></div>
-                    <div>
-                        <p>{{ $user->name }}</p>
-                        <span>{{ '@'.$username }}</span>
+
+                <div>
+                            <p>{{ $user->name }}</p>
+                        <span>{{ '@' . $username }}</span>
                     </div>
-                </div>
+                </a>
 
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
@@ -47,7 +50,10 @@
 
                     <div class="dashboard-actions">
                         <span class="mini-chip">This month</span>
-                        <button type="button" class="dashboard-add-card">Export summary</button>
+
+                            <a href="{{ route('stats.export.pdf') }}" class="dashboard-add-card">
+                            Export summary
+                        </a>
                     </div>
                 </header>
 
@@ -196,10 +202,31 @@
                             </div>
 
                             <div class="stats-action-list">
-                                <button type="button" class="dashboard-add-card dashboard-add-card-secondary">Export PDF summary</button>
-                                <button type="button" class="dashboard-search-submit">Download CSV data</button>
-                                <button type="button" class="dashboard-search-submit">Share snapshot</button>
+                                <a href="{{ route('stats.export.pdf') }}" class="dashboard-add-card dashboard-add-card-secondary">
+                                    Export PDF summary
+                                 </a>
+
+                                <a href="{{ route('stats.export.csv') }}" class="dashboard-search-submit">
+                                    Download CSV data
+                                </a>
+
+                            <form method="POST" action="{{ route('stats.share') }}" class="stats-share-form">
+                                @csrf
+                            <button type="submit" class="dashboard-search-submit">
+                                 Share snapshot
+                            </button>
+                        </form>
+                    </div>
+                    @if (session('snapshot'))
+                            <div class="stats-snapshot-box">
+                                <div class="stats-snapshot-header">
+                                 <strong>Snapshot ready</strong>
+                                 <span>Copy and share this summary.</span>
                             </div>
+
+                        <textarea class="stats-snapshot-text" readonly>{{ session('snapshot') }}</textarea>
+                     </div>
+                @endif
 
                             <div class="stats-highlight-card stats-highlight-dark">
                                 <span class="summary-label">Next milestone</span>

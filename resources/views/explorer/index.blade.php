@@ -17,13 +17,16 @@
         @endphp
         <main class="dashboard-shell">
             <aside class="dashboard-sidebar">
-                <div class="sidebar-brand">
+                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
+                    class="sidebar-brand sidebar-profile-link">
+
                     <div class="sidebar-avatar"></div>
-                    <div>
-                        <p>{{ $user->name }}</p>
-                        <span>{{ '@'.$username }}</span>
+
+                <div>
+                            <p>{{ $user->name }}</p>
+                        <span>{{ '@' . $username }}</span>
                     </div>
-                </div>
+                </a>
 
                 <nav class="sidebar-nav" aria-label="Primary">
                     <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
