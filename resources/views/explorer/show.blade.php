@@ -129,19 +129,39 @@
 
                     <div class="collection-grid">
                         @forelse ($cards as $card)
+                            @php
+                                $photoPath = \App\Models\UserCard::query()
+                                    ->where('card_id', $card->id)
+                                    ->whereNotNull('photo_path')
+                                    ->latest('updated_at')
+                                    ->value('photo_path');
+
+                                $photoUrl = $photoPath
+                                    ? \Illuminate\Support\Facades\Storage::url($photoPath)
+                                    : null;
+                            @endphp
+
                             <article class="collection-item-card">
-                                <div class="marketplace-thumb {{ $card->thumbnail_style ?: 'market-thumb-one' }}">
+                                <div
+                                    class="marketplace-thumb {{ $photoUrl ? 'collection-thumb-photo' : ($card->thumbnail_style ?: 'market-thumb-one') }}"
+                                    @if ($photoUrl)
+                                        style="background-image: url('{{ $photoUrl }}');"
+                                    @endif
+                                >
                                     <div class="marketplace-tags">
                                         <span class="collection-pill">{{ $card->rarity }}</span>
+
                                         @if ($card->active_listings_count > 0)
                                             <span class="collection-pill">{{ $card->active_listings_count }} listings</span>
                                         @endif
                                     </div>
                                 </div>
+
                                 <div class="collection-item-copy">
                                     <h3>{{ $card->title }}</h3>
                                     <p>{{ $card->artist }}</p>
                                     <p>{{ $card->album ?: ($card->edition ?: 'Standalone') }}</p>
+
                                     <div class="collection-meta-row">
                                         <span class="collection-pill">{{ $card->wishlist_items_count }} wishlists</span>
                                         <strong>{{ $formatMoney($card->market_value) }}</strong>

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 
+
 class CollectionCardController extends Controller
 {
     public function create(): View
@@ -220,5 +221,29 @@ class CollectionCardController extends Controller
             ],
         );
     }
+public function destroy(\App\Models\UserCard $userCard)
+{
+    abort_unless($userCard->user_id === auth()->id(), 403);
+
+    \Illuminate\Support\Facades\DB::transaction(function () use ($userCard) {
+        \App\Models\MarketplaceListing::query()
+            ->where('user_card_id', $userCard->id)
+            ->where('user_id', auth()->id())
+            ->update([
+                'status' => 'inactive',
+                'is_visible' => false,
+            ]);
+
+        if (! empty($userCard->photo_path)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($userCard->photo_path);
+        }
+
+        $userCard->delete();
+    });
+
+    return redirect()
+        ->route('collection.index')
+        ->with('status', 'Card deleted successfully.');
+}
     
 }

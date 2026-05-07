@@ -78,31 +78,50 @@
                                 $badge = $card->edition ?: $card->rarity;
                                 $accent = $card->rarity;
                                 $photoUrl = $item->photo_path ? \Illuminate\Support\Facades\Storage::url($item->photo_path) : null;
+
                                 $visibility = collect([
                                     $item->is_public ? 'Public' : 'Private',
                                     $item->is_for_trade ? 'Trade' : null,
                                     $item->is_for_sale ? 'Sale' : null,
                                 ])->filter()->implode(' • ');
                             @endphp
-                            <a href="{{ route('collection.show', $item) }}" class="collection-item-link">
-                                <article class="collection-item">
-                                <div class="collection-thumb {{ $photoUrl ? 'collection-thumb-photo' : $card->thumbnail_style }}" @if ($photoUrl) style="background-image: url('{{ $photoUrl }}');" @endif>
-                                    <span class="collection-pill collection-pill-left">{{ $item->condition }}</span>
-                                    <span class="collection-pill collection-pill-right">{{ $badge }}</span>
-                                </div>
-                                <div class="collection-meta">
-                                    <h3>{{ $card->title }}</h3>
-                                    <p>{{ strtoupper($card->artist) }}</p>
-                                    <p>{{ $card->album ?: 'Standalone release' }}</p>
-                                    <p>{{ $item->condition }}</p>
-                                    <p>{{ $visibility }}</p>
-                                    <div class="collection-meta-footer">
-                                        <span class="mini-chip">{{ $accent }}</span>
-                                        <strong>1 copy</strong>
+
+                            <article class="collection-item collection-item-with-actions">
+                                <a href="{{ route('collection.show', $item) }}" class="collection-item-link">
+                                    <div
+                                        class="collection-thumb {{ $photoUrl ? 'collection-thumb-photo' : $card->thumbnail_style }}"
+                                        @if ($photoUrl)
+                                            style="background-image: url('{{ $photoUrl }}');"
+                                        @endif
+                                    >
+                                        <span class="collection-pill collection-pill-left">{{ $item->condition }}</span>
+                                        <span class="collection-pill collection-pill-right">{{ $badge }}</span>
                                     </div>
+
+                                    <div class="collection-meta">
+                                        <h3>{{ $card->title }}</h3>
+                                        <p>{{ strtoupper($card->artist) }}</p>
+                                        <p>{{ $card->album ?: 'Standalone release' }}</p>
+                                        <p>{{ $item->condition }}</p>
+                                        <p>{{ $visibility }}</p>
+
+                                        <div class="collection-meta-footer">
+                                            <span class="mini-chip">{{ $accent }}</span>
+                                            <strong>1 copy</strong>
+                                        </div>
+                                    </div>
+                                </a>
+
+                                <div class="collection-delete-form">
+                                    <button
+                                        type="button"
+                                        class="collection-delete-btn js-open-collection-delete-modal"
+                                        data-delete-url="{{ route('collection.destroy', $item) }}"
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
                             </article>
-                            </a>
                         @empty
                             <div class="collection-empty">
                                 No cards found for this filter yet.
@@ -133,5 +152,83 @@
                 </section>
             </section>
         </main>
+        <div class="delete-modal" id="collectionDeleteModal" aria-hidden="true">
+    <div class="delete-modal-backdrop js-close-collection-delete-modal"></div>
+
+    <div
+        class="delete-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="collectionDeleteTitle"
+    >
+        <div class="delete-modal-icon">!</div>
+
+        <div>
+            <p class="delete-modal-eyebrow">Confirm delete</p>
+            <h2 id="collectionDeleteTitle">Delete this card?</h2>
+            <p class="delete-modal-text">
+                This will permanently remove the card from your collection. This action cannot be undone.
+            </p>
+        </div>
+
+        <form method="POST" id="collectionDeleteForm">
+            @csrf
+            @method('DELETE')
+
+            <div class="delete-modal-actions">
+                <button type="button" class="delete-modal-cancel js-close-collection-delete-modal">
+                    Cancel
+                </button>
+
+                <button type="submit" class="delete-modal-confirm">
+                    Yes, delete card
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.getElementById('collectionDeleteModal');
+            const form = document.getElementById('collectionDeleteForm');
+            const openButtons = document.querySelectorAll('.js-open-collection-delete-modal');
+            const closeButtons = document.querySelectorAll('.js-close-collection-delete-modal');
+
+            if (!modal || !form) {
+                return;
+            }
+
+            openButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const deleteUrl = button.getAttribute('data-delete-url');
+
+                    if (!deleteUrl) {
+                        return;
+                    }
+
+                    form.setAttribute('action', deleteUrl);
+                    modal.classList.add('is-open');
+                    modal.setAttribute('aria-hidden', 'false');
+                });
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    modal.classList.remove('is-open');
+                    modal.setAttribute('aria-hidden', 'true');
+                    form.removeAttribute('action');
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+                    modal.classList.remove('is-open');
+                    modal.setAttribute('aria-hidden', 'true');
+                    form.removeAttribute('action');
+                }
+            });
+        });
+    </script>
     </body>
 </html>

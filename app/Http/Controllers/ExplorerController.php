@@ -194,7 +194,12 @@ class ExplorerController extends Controller
 
     protected function filteredCardsQuery(string $search, string $filter): Builder
     {
-        $query = Card::query();
+        $query = Card::query()
+            ->whereExists(function ($subQuery) {
+                $subQuery->selectRaw(1)
+                    ->from('user_cards')
+                    ->whereColumn('user_cards.card_id', 'cards.id');
+            });
 
         $this->applySearchAndFilter($query, $search, $filter);
 

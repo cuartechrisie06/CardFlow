@@ -42,7 +42,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/collection/{userCard}', [CollectionCardController::class, 'show'])->name('collection.show');
     Route::get('/collection/{userCard}/edit', [CollectionCardController::class, 'edit'])->name('collection.edit');
     Route::put('/collection/{userCard}', [CollectionCardController::class, 'update'])->name('collection.update');
-    Route::get('/cards/{id}', [CollectionCardController::class, 'show'])->name('cards.show');
+    Route::delete('/collection/{userCard}', [CollectionCardController::class, 'destroy'])->name('collection.destroy');
+    Route::get('/cards/{id}', [CollectionCardController::class, 'showCard'])->name('cards.show');
     Route::get('/marketplace', MarketplaceController::class)->name('marketplace.index');
     Route::get('/marketplace/create', [MarketplaceController::class, 'create'])->name('marketplace.create');
     Route::post('/marketplace', [MarketplaceController::class, 'store'])->name('marketplace.store');
