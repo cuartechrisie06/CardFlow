@@ -1,5 +1,12 @@
-<x-guest-layout>
-    <div class="auth-card">
+@extends('layouts.app')
+
+@section('title', 'CardFlow | Create account')
+@section('layout_mode', 'shellless')
+@section('body_class', 'cardflow-body')
+
+@section('content')
+<main class="cardflow-shell">
+    <section class="auth-panel auth-panel--full" aria-label="Create account"><div class="auth-card">
         <h2 class="text-2xl font-bold mb-4">Create account</h2>
         <p class="mb-6 text-gray-600">Join Cardflow and start your collection journey.</p>
 
@@ -70,5 +77,7 @@
                 Create account
             </button>
         </form>
-    </div>
-</x-guest-layout>
+    </div>    </section>
+</main>
+@endsection
+

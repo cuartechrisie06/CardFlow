@@ -56,18 +56,19 @@ class DashboardController extends Controller
         $months = collect(range(5, 0))
             ->map(fn (int $offset) => now()->startOfMonth()->subMonths($offset));
 
-        $points = $months->map(function (Carbon $month) use ($userId) {
-            $value = (float) DB::table('user_cards')
-                ->join('cards', 'cards.id', '=', 'user_cards.card_id')
-                ->where('user_cards.user_id', $userId)
-                ->where(function ($query) use ($month) {
-                    $query->whereDate('user_cards.acquired_at', '<=', $month->copy()->endOfMonth())
-                        ->orWhere(function ($nested) use ($month) {
-                            $nested->whereNull('user_cards.acquired_at')
-                                ->whereDate('user_cards.created_at', '<=', $month->copy()->endOfMonth());
-                        });
-                })
-                ->sum(DB::raw('coalesce(user_cards.estimated_value, cards.market_value)'));
+        $cardValues = DB::table('user_cards')
+            ->join('cards', 'cards.id', '=', 'user_cards.card_id')
+            ->where('user_cards.user_id', $userId)
+            ->selectRaw('COALESCE(user_cards.acquired_at, user_cards.created_at) as effective_date')
+            ->selectRaw('COALESCE(user_cards.estimated_value, cards.market_value, 0) as effective_value')
+            ->get();
+
+        $points = $months->map(function (Carbon $month) use ($cardValues) {
+            $monthEnd = $month->copy()->endOfMonth();
+
+            $value = (float) $cardValues
+                ->filter(fn ($row) => $row->effective_date && Carbon::parse($row->effective_date)->lessThanOrEqualTo($monthEnd))
+                ->sum('effective_value');
 
             return [
                 'label' => $month->format('M'),
@@ -208,16 +209,16 @@ class DashboardController extends Controller
             ->whereDate('happened_at', today())
             ->count();
 
-        $replyBase = DB::table('trades')
+        $replyStats = DB::table('trades')
             ->where('user_id', $userId)
-            ->whereIn('status', ['pending', 'new_offer', 'in_progress', 'completed'])
-            ->count();
+            ->selectRaw("
+                SUM(CASE WHEN status IN ('pending', 'new_offer', 'in_progress', 'completed') THEN 1 ELSE 0 END) as reply_base,
+                SUM(CASE WHEN replied_at IS NOT NULL THEN 1 ELSE 0 END) as reply_count
+            ")
+            ->first();
 
-        $replyCount = DB::table('trades')
-            ->where('user_id', $userId)
-            ->whereNotNull('replied_at')
-            ->count();
-
+        $replyBase = (int) ($replyStats->reply_base ?? 0);
+        $replyCount = (int) ($replyStats->reply_count ?? 0);
         $replyRate = $replyBase > 0 ? (int) round(($replyCount / $replyBase) * 100) : 0;
 
         return [

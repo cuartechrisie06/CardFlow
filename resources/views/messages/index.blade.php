@@ -1,60 +1,13 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>CardFlow | Messages</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $user = auth()->user();
-            $username = $user->username ?: 'collector';
-        @endphp
-        <main
-            class="dashboard-shell"
-            data-messages-app
-            data-user-id="{{ $user->id }}"
-            data-username="{{ $username }}"
-            data-active-conversation-id="{{ $activeConversation?->id }}"
-            data-send-url="{{ route('messages.store') }}"
-            data-start-url="{{ route('messages.start') }}"
-            data-read-url-template="{{ route('messages.read', ['conversation' => '__CONVERSATION__']) }}"
-            data-open-compose="{{ $openCompose ? '1' : '0' }}"
-            data-compose-recipient-id="{{ $composeRecipientId }}"
-            data-compose-listing-id="{{ $composeListingId }}"
-        >
-            <aside class="dashboard-sidebar">
-                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
-                    class="sidebar-brand sidebar-profile-link">
+@extends('layouts.app')
 
-                    <div class="sidebar-avatar"></div>
+@section('title', 'CardFlow | Messages')
+@section('body_class', 'dashboard-body')
 
-                <div>
-                    <p>{{ $user->name }}</p>
-                        <span>{{ '@' . $username }}</span>
-                    </div>
-                </a>
+@section('topbar')
+@endsection
 
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                    <a href="{{ route('messages.index') }}" class="sidebar-link is-active">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-                </nav>
-
-                @include('partials.sidebar-collector', ['user' => $user])
-            </aside>
-
-            <section class="dashboard-main">
-                <header class="dashboard-header marketplace-header">
+@section('content')
+<header class="dashboard-header marketplace-header">
                     <div>
                         <p class="dashboard-kicker">Messages</p>
                         <h1>Trade chat screen</h1>
@@ -94,21 +47,33 @@
                                     $participant = $conversation->otherParticipant($user);
                                     $lastMessage = $conversation->latestMessage;
                                     $isActive = $activeConversation && $activeConversation->id === $conversation->id;
+                                    $isUnread = ($conversation->unread_count ?? 0) > 0;
                                 @endphp
                                 @if ($participant)
                                     <a href="{{ route('messages.index', ['conversation' => $conversation->id, 'q' => $search ?: null]) }}" class="messages-list-link" data-conversation-link-id="{{ $conversation->id }}">
-                                        <article class="messages-list-item {{ $isActive ? 'is-active' : '' }}">
+                                        <article class="messages-list-item {{ $isActive ? 'is-active' : '' }} {{ $isUnread ? 'is-unread' : '' }}">
                                             <div class="messages-avatar messages-avatar-rose"></div>
                                             <div class="messages-list-copy">
                                                 <strong>{{ '@'.$participant->username }}</strong>
                                                 <p>{{ $lastMessage?->body ?: 'No messages yet.' }}</p>
                                             </div>
-                                            <span class="messages-unread" @if (($conversation->unread_count ?? 0) <= 0) hidden @endif>{{ $conversation->unread_count ?? 0 }}</span>
+                                            <div class="messages-list-meta">
+                                                <span class="messages-list-time">{{ $lastMessage?->created_at?->diffForHumans() ?: 'Just now' }}</span>
+                                                <span class="messages-unread-dot" @if (! $isUnread) hidden @endif></span>
+                                                <span class="messages-unread" @if (! $isUnread) hidden @endif>{{ $conversation->unread_count ?? 0 }}</span>
+                                            </div>
                                         </article>
                                     </a>
                                 @endif
                             @empty
-                                <div class="collection-empty">No conversations match this search yet.</div>
+                                <div class="collection-empty collection-empty-rich messages-empty-state">
+                                    <div class="collection-empty-icon" aria-hidden="true">💌</div>
+                                    <h3>No messages yet.</h3>
+                                    <p>Find a listing and message the seller.</p>
+                                    <a href="{{ route('marketplace.index') }}" class="dashboard-add-card">
+                                        Browse Marketplace
+                                    </a>
+                                </div>
                             @endforelse
                         </div>
                     </aside>
@@ -130,22 +95,49 @@
                             </div>
 
                             @if ($activeListing)
+                                @php
+                                    $listingPhotoUrl = $storagePhotoUrl($activeListing->userCard?->photo_path);
+                                    $listingPriceLabel = $activeListing->userCard?->is_for_sale
+                                        ? 'PHP '.number_format((float) ($activeListing->userCard?->listing_price ?? 0), 0)
+                                        : 'Trade listing';
+                                @endphp
                                 <div class="messages-listing-context">
-                                    <div>
-                                        <p class="mini-label">Listing in discussion</p>
-                                        <strong>{{ $activeListing->card?->title ?: 'Marketplace listing' }}</strong>
-                                        <p>{{ '@'.$activeListing->user->username }} - {{ $activeListing->card?->artist ?: 'Photocard listing' }}</p>
+                                    <div class="messages-listing-context-card">
+                                        <div class="messages-listing-thumb {{ $activeListing->card?->thumbnail_style ?? 'market-thumb-one' }}">
+                                            <img
+                                                src="{{ $listingPhotoUrl ?: asset('images/placeholder-card.png') }}"
+                                                alt="{{ $activeListing->card?->title ?: 'Listing image' }}"
+                                                class="card-media-image"
+                                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                            >
+                                        </div>
+                                        <div>
+                                            <p class="mini-label">Listing in discussion</p>
+                                            <strong>{{ $activeListing->card?->title ?: 'Marketplace listing' }}</strong>
+                                            <p>{{ '@'.$activeListing->user->username }} - {{ $activeListing->card?->artist ?: 'Photocard listing' }}</p>
+                                        </div>
                                     </div>
-                                    <a href="{{ route('marketplace.cards.show', $activeListing) }}" class="mini-chip">View listing</a>
+                                    <div class="messages-listing-context-actions">
+                                        <span class="mini-chip">{{ $listingPriceLabel }}</span>
+                                        <a href="{{ route('marketplace.cards.show', $activeListing) }}" class="mini-chip">View listing</a>
+                                    </div>
                                 </div>
                             @endif
 
                             <div class="messages-thread-body" data-thread-body>
                                 @if (($activeConversation->messages_count ?? $activeConversation->messages->count()) > 0)
                                     @foreach ($activeConversation->messages as $message)
+                                        @php
+                                            $messageStatus = $message->sender_id === $user->id
+                                                ? ($message->read_at ? 'Seen' : 'Sent')
+                                                : ($message->read_at ? 'Read' : 'Unread');
+                                        @endphp
                                         <article class="messages-bubble messages-bubble-{{ $message->sender_id === $user->id ? 'me' : 'them' }}" data-message-id="{{ $message->id }}">
                                             <p>{{ $message->body ?: 'Shared media' }}</p>
-                                            <span>{{ $message->created_at?->format('g:i A') }}</span>
+                                            <div class="messages-bubble-meta">
+                                                <span>{{ $message->created_at?->format('g:i A') }}</span>
+                                                <span class="messages-read-status">{{ $messageStatus }}</span>
+                                            </div>
                                         </article>
                                     @endforeach
                                 @else
@@ -166,7 +158,6 @@
                         @endif
                     </section>
                 </section>
-            </section>
 
             <div class="messages-compose-overlay" data-compose-overlay hidden>
                 <div class="messages-compose-modal">
@@ -215,6 +206,5 @@
                     </form>
                 </div>
             </div>
-        </main>
-    </body>
-</html>
+@endsection
+

@@ -1,48 +1,13 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | Explorer</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $user = auth()->user();
-            $username = $user->username ?: 'collector';
-            $formatMoney = fn (float|int $value) => 'PHP '.number_format((float) $value, 0);
-        @endphp
-        <main class="dashboard-shell">
-            <aside class="dashboard-sidebar">
-                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
-                    class="sidebar-brand sidebar-profile-link">
+@extends('layouts.app')
 
-                    <div class="sidebar-avatar"></div>
+@section('title', 'CardFlow | Explorer')
+@section('body_class', 'dashboard-body')
 
-                <div>
-                            <p>{{ $user->name }}</p>
-                        <span>{{ '@' . $username }}</span>
-                    </div>
-                </a>
+@section('topbar')
+@endsection
 
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link is-active">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-                </nav>
-
-                @include('partials.sidebar-collector', ['user' => $user])
-            </aside>
-
-            <section class="dashboard-main">
-                <header class="dashboard-header marketplace-header">
+@section('content')
+<header class="dashboard-header marketplace-header">
                     <div>
                         <p class="dashboard-kicker">Artist / Card Explorer</p>
                         <h1>Artist / card explorer</h1>
@@ -143,7 +108,14 @@
                                     </div>
                                 </a>
                             @empty
-                                <div class="collection-empty">No artists match this explorer view yet.</div>
+                                <div class="collection-empty collection-empty-rich">
+                                    <div class="collection-empty-icon" aria-hidden="true">🔎</div>
+                                    <h3>No cards match your search.</h3>
+                                    <p>Try adjusting your filters.</p>
+                                    <a href="{{ route('explorer.index') }}" class="dashboard-add-card">
+                                        Reset Filters
+                                    </a>
+                                </div>
                             @endforelse
                         </div>
                     </section>
@@ -195,7 +167,5 @@
                         </article>
                     </section>
                 </section>
-            </section>
-        </main>
-    </body>
-</html>
+@endsection
+

@@ -48,4 +48,10 @@ class StatsPageTest extends TestCase
             ->assertSeeText('Aespa')
             ->assertSeeText('IVE');
     }
+
+    public function test_guest_is_redirected_when_accessing_stats_page(): void
+    {
+        $this->get(route('stats.index'))
+            ->assertRedirect(route('login'));
+    }
 }

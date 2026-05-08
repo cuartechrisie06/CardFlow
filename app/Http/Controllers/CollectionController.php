@@ -65,7 +65,7 @@ class CollectionController extends Controller
                     'album' => 'Album',
                 ],
             ],
-            'collectionCount' => $user->userCards()->count(),
+            'collectionCount' => $collectionCards->total(),
         ]);
     }
 }

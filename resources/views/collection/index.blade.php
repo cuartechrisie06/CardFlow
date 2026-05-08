@@ -1,54 +1,19 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | My Collection</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $user = auth()->user();
-            $username = $user->username ?: 'collector';
-            $formatMoney = fn (float|int|null $value) => 'PHP '.number_format((float) $value, 0);
-        @endphp
-        <main class="dashboard-shell">
-            <aside class="dashboard-sidebar">
-                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
-                    class="sidebar-brand sidebar-profile-link">
+@extends('layouts.app')
 
-                    <div class="sidebar-avatar"></div>
+@section('title', 'CardFlow | My Collection')
+@section('body_class', 'dashboard-body')
 
-                <div>
-                     <p>{{ $user->name }}</p>
-                    <span>{{ '@' . $username }}</span>
-                </div>
-                </a>
+@section('topbar')
+@endsection
 
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link is-active">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-                </nav>
-
-                @include('partials.sidebar-collector', ['user' => $user])
-            </aside>
-
-            <section class="dashboard-main">
-                <header class="dashboard-header collection-header">
+@section('content')
+<header class="dashboard-header collection-header">
                     <div>
                         <p class="dashboard-kicker">My Collection</p>
                         <h1>My collection</h1>
                     </div>
 
-                    <a href="{{ route('collection.create') }}" class="dashboard-add-card">+ Upload card</a>
+                    <a href="{{ route('collection.create') }}" class="dashboard-add-card">+ Add collection item</a>
                 </header>
 
                 <section class="dashboard-card collection-card-shell">
@@ -77,7 +42,7 @@
                                 $card = $item->card;
                                 $badge = $card->edition ?: $card->rarity;
                                 $accent = $card->rarity;
-                                $photoUrl = $item->photo_path ? \Illuminate\Support\Facades\Storage::url($item->photo_path) : null;
+                                $photoUrl = $storagePhotoUrl($item->photo_path);
 
                                 $visibility = collect([
                                     $item->is_public ? 'Public' : 'Private',
@@ -88,12 +53,13 @@
 
                             <article class="collection-item collection-item-with-actions">
                                 <a href="{{ route('collection.show', $item) }}" class="collection-item-link">
-                                    <div
-                                        class="collection-thumb {{ $photoUrl ? 'collection-thumb-photo' : $card->thumbnail_style }}"
-                                        @if ($photoUrl)
-                                            style="background-image: url('{{ $photoUrl }}');"
-                                        @endif
-                                    >
+                                    <div class="collection-thumb card-media-ratio {{ $card->thumbnail_style }}">
+                                        <img
+                                            src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
+                                            alt="{{ $card->title }}"
+                                            class="card-media-image"
+                                            onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                        >
                                         <span class="collection-pill collection-pill-left">{{ $item->condition }}</span>
                                         <span class="collection-pill collection-pill-right">{{ $badge }}</span>
                                     </div>
@@ -123,8 +89,13 @@
                                 </div>
                             </article>
                         @empty
-                            <div class="collection-empty">
-                                No cards found for this filter yet.
+                            <div class="collection-empty collection-empty-rich">
+                                <div class="collection-empty-icon" aria-hidden="true">🧺</div>
+                                <h3>Your collection is empty.</h3>
+                                <p>Start by adding your first photocard.</p>
+                                <a href="{{ route('collection.create') }}" class="dashboard-add-card">
+                                    + Add Card
+                                </a>
                             </div>
                         @endforelse
                     </div>
@@ -150,8 +121,6 @@
                         </div>
                     </div>
                 </section>
-            </section>
-        </main>
         <div class="delete-modal" id="collectionDeleteModal" aria-hidden="true">
     <div class="delete-modal-backdrop js-close-collection-delete-modal"></div>
 
@@ -165,9 +134,9 @@
 
         <div>
             <p class="delete-modal-eyebrow">Confirm delete</p>
-            <h2 id="collectionDeleteTitle">Delete this card?</h2>
+            <h2 id="collectionDeleteTitle">Delete this collection item?</h2>
             <p class="delete-modal-text">
-                This will permanently remove the card from your collection. This action cannot be undone.
+                This will permanently remove the collection item from your collection. This action cannot be undone.
             </p>
         </div>
 
@@ -230,5 +199,5 @@
             });
         });
     </script>
-    </body>
-</html>
+@endsection
+

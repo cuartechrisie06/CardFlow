@@ -1,195 +1,196 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | Marketplace</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $viewer = auth()->user();
+@extends('layouts.app')
 
-            $photoUrl = $userCard->photo_path
-                ? \Illuminate\Support\Facades\Storage::url($userCard->photo_path)
-                : null;
-        @endphp
+@section('title', 'CardFlow | Listing Details')
+@section('body_class', 'dashboard-body card-details-page')
 
-        <main class="dashboard-shell">
-            <aside class="dashboard-sidebar">
-                <a
-                    href="{{ $viewer->username ? route('profile.show', $viewer->username) : route('profile.edit') }}"
-                    class="sidebar-brand sidebar-profile-link"
-                >
-                    <div class="sidebar-avatar"></div>
+@section('topbar')
+@endsection
 
+@section('content')
+<header class="dashboard-header marketplace-header card-details-header">
                     <div>
-                        <p>{{ $viewer->name }}</p>
-                        <span>{{ '@' . ($viewer->username ?: 'collector') }}</span>
-                    </div>
-                </a>
-
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link is-active">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-                </nav>
-
-                @include('partials.sidebar-collector', ['user' => $viewer])
-            </aside>
-
-            <section class="dashboard-main">
-                <header class="dashboard-header marketplace-header">
-                    <div>
-                        <p class="dashboard-kicker">Marketplace Card</p>
+                        <p class="dashboard-kicker">Marketplace Listing</p>
+                        <p class="card-details-eyebrow">Listing Details</p>
                         <h1>{{ $userCard->card->title }}</h1>
                         <p class="dashboard-intro">
                             Listed by {{ $owner->name }} for marketplace browsing.
                         </p>
                     </div>
 
-                    <div class="dashboard-actions">
+                    <div class="dashboard-actions card-details-actions">
                         <a
                             href="{{ route('marketplace.index', ['filter' => $listing->user_id === auth()->id() ? 'my_listings' : 'all']) }}"
-                            class="dashboard-search-submit"
+                            class="card-details-back-button"
                         >
-                            Back
+                            ← Back to Marketplace
                         </a>
-
-                        <a
-                            href="{{ route('marketplace.user', $owner) }}"
-                            class="dashboard-add-card dashboard-add-card-secondary"
-                        >
-                            View {{ $owner->name }}'s collection
-                        </a>
-
-                        @if ($viewer->id !== $owner->id)
-                            <form
-                                action="{{ route('messages.listings.store', $listing) }}"
-                                method="POST"
-                                class="dashboard-inline-form"
-                            >
-                                @csrf
-
-                                <button type="submit" class="dashboard-add-card">
-                                    {{ $userCard->is_for_sale ? 'Message seller' : 'Message trader' }}
-                                </button>
-                            </form>
-                        @endif
-                    </div>
-
-                        @if ($viewer->id !== $owner->id)
-                            <form
-                                action="{{ route('messages.listings.store', $listing) }}"
-                                method="POST"
-                                class="dashboard-inline-form"
-                            >
-                                @csrf
-
-                                <button type="submit" class="dashboard-add-card">
-                                    {{ $userCard->is_for_sale ? 'Message seller' : 'Message trader' }}
-                                </button>
-                            </form>
-                        @endif
                     </div>
                 </header>
 
-                <section class="dashboard-card card-detail-shell">
-                    <div
-                        class="card-detail-media {{ $photoUrl ? 'collection-thumb-photo' : $userCard->card->thumbnail_style }}"
-                        @if ($photoUrl)
-                            style="background-image: url('{{ $photoUrl }}');"
-                        @endif
-                    ></div>
-
-                    <div class="card-detail-copy">
-                        <div class="card-topline">
-                            <div>
-                                <p class="mini-label">Card details</p>
-                                <h2>{{ $userCard->card->title }}</h2>
+                <section class="dashboard-card card-detail-shell card-detail-shell-premium">
+                    <div class="card-detail-media-column">
+                        <div class="card-detail-media-frame rarity-{{ \Illuminate\Support\Str::slug($rarityLabel($userCard->card->rarity)) }}">
+                            <div class="card-detail-media card-detail-media-premium {{ $userCard->card->thumbnail_style }}">
+                                <img
+                                    src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
+                                    alt="{{ $userCard->card->title }}"
+                                    class="card-detail-media-image"
+                                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                >
+                                <div class="card-detail-media-overlay"></div>
+                                <span class="card-detail-rarity-badge">🌟 {{ $rarityLabel($userCard->card->rarity) }}</span>
                             </div>
-
-                            <span class="mini-chip">
-                                {{ strtoupper($userCard->card->rarity) }}
-                            </span>
                         </div>
+                    </div>
 
-                        <div class="card-detail-grid">
-                            <div>
-                                <span class="summary-label">Artist</span>
-                                <strong>{{ $userCard->card->artist }}</strong>
-                            </div>
+                    <div class="card-detail-copy card-detail-copy-premium">
+                        <section class="card-detail-hero card-detail-fade" style="--card-detail-delay: 0ms;">
+                            <p class="mini-label">Artist / Group</p>
+                            <h2>{{ $userCard->card->artist }}</h2>
+                            <p class="card-detail-title-display">{{ $userCard->card->title }}</p>
+                        </section>
 
-                            <div>
+                        <div class="card-detail-divider"></div>
+
+                        <section class="card-detail-chip-grid card-detail-fade" style="--card-detail-delay: 50ms;">
+                            <article class="card-detail-chip">
                                 <span class="summary-label">Album</span>
                                 <strong>{{ $userCard->card->album ?: 'Standalone' }}</strong>
-                            </div>
-
-                            <div>
+                            </article>
+                            <article class="card-detail-chip">
                                 <span class="summary-label">Edition</span>
                                 <strong>{{ $userCard->card->edition ?: 'Standard' }}</strong>
-                            </div>
+                            </article>
+                            <article class="card-detail-chip">
+                                <span class="summary-label">Rarity</span>
+                                <strong>{{ $rarityLabel($userCard->card->rarity) }}</strong>
+                            </article>
+                        </section>
 
-                            <div>
+                        <section class="card-detail-support-grid card-detail-fade" style="--card-detail-delay: 100ms;">
+                            <article class="card-detail-chip">
                                 <span class="summary-label">Condition</span>
                                 <strong>{{ $userCard->condition }}</strong>
-                            </div>
-
-                            <div>
+                            </article>
+                            <article class="card-detail-chip">
                                 <span class="summary-label">Visibility</span>
                                 <strong>{{ $userCard->is_public ? 'Public' : 'Listed only' }}</strong>
-                            </div>
-
-                            <div>
+                            </article>
+                            <article class="card-detail-chip">
                                 <span class="summary-label">Listing</span>
-                                <strong>
-                                    {{ $userCard->is_for_trade ? 'Trade' : ($userCard->is_for_sale ? 'Sale' : 'Showcase') }}
-                                </strong>
+                                <strong>{{ $userCard->is_for_trade ? 'Trade' : ($userCard->is_for_sale ? 'Sale' : 'Showcase') }}</strong>
+                            </article>
+                        </section>
+
+                        <div class="card-detail-divider"></div>
+
+                        <section class="card-financial-summary card-detail-fade" style="--card-detail-delay: 150ms;">
+                            <div class="card-financial-grid">
+                                <article class="card-financial-chip">
+                                    <span class="summary-label">Market Value</span>
+                                    <strong>PHP {{ number_format($marketValue, 2) }}</strong>
+                                </article>
+                                <article class="card-financial-chip">
+                                    <span class="summary-label">Purchase Price</span>
+                                    <strong>PHP {{ number_format($purchasePrice, 2) }}</strong>
+                                </article>
+                                <article class="card-financial-chip">
+                                    <span class="summary-label">Estimated Value</span>
+                                    <strong>PHP {{ number_format($estimatedValue, 2) }}</strong>
+                                </article>
                             </div>
-                        </div>
 
-                        @if ($userCard->listing_price)
-                            <p class="dashboard-intro">
-                                Listing price: PHP {{ number_format((float) $userCard->listing_price, 0) }}
-                            </p>
-                        @endif
-
-                        @if ($listing->user_id === auth()->id())
-                            <div class="my-listing-actions">
-                                <a
-                                    href="{{ route('marketplace.edit', $listing) }}"
-                                    class="my-listing-edit"
-                                >
-                                    Edit
-                                </a>
-
-                                <button
-                                    type="button"
-                                    class="my-listing-delete js-open-delete-modal"
-                                    data-delete-url="{{ route('marketplace.destroy', $listing) }}"
-                                >
-                                    Delete
-                                </button>
+                            <div class="card-detail-profit {{ $isPositiveDelta ? 'is-positive' : 'is-negative' }}">
+                                <span class="summary-label">Net change</span>
+                                <strong>{{ $isPositiveDelta ? '+' : '-' }}PHP {{ number_format(abs($valueDelta), 2) }}</strong>
                             </div>
-                        @endif
+                        </section>
 
                         @if ($userCard->notes)
-                            <div class="dashboard-card card-note-shell">
+                            <section class="dashboard-card card-note-shell card-detail-fade" style="--card-detail-delay: 200ms;">
                                 <p class="mini-label">Owner note</p>
                                 <p>{{ $userCard->notes }}</p>
-                            </div>
+                            </section>
                         @endif
+
+                        <section class="dashboard-card seller-trust-card card-detail-fade" style="--card-detail-delay: 225ms;">
+                            <div class="seller-trust-header">
+                                @if ($owner->avatar_url)
+                                    <img
+                                        src="{{ $owner->avatar_url }}"
+                                        alt="{{ $owner->name }} avatar"
+                                        class="seller-trust-avatar"
+                                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                    >
+                                @else
+                                    <div class="seller-trust-avatar seller-trust-avatar-fallback" aria-hidden="true">
+                                        {{ $owner->initials }}
+                                    </div>
+                                @endif
+
+                                <div class="seller-trust-copy">
+                                    <p class="mini-label">Seller</p>
+                                    <h3>{{ $owner->name }}</h3>
+                                    <p>{{ '@'.$owner->username }}</p>
+                                </div>
+                            </div>
+
+                            <div class="seller-trust-meta">
+                                @if ($owner->seller_badge)
+                                    <span class="seller-trust-badge">✦ {{ $owner->seller_badge }}</span>
+                                @endif
+                                <span class="mini-chip">{{ $owner->completed_trades_count }} trade{{ $owner->completed_trades_count === 1 ? '' : 's' }}</span>
+                                <span class="mini-chip">{{ $owner->active_listings_count }} listing{{ $owner->active_listings_count === 1 ? '' : 's' }}</span>
+                                <span class="mini-chip">Member since {{ $owner->created_at?->format('M Y') }}</span>
+                            </div>
+                        </section>
+
+                        <div class="card-detail-secondary-actions card-detail-fade" style="--card-detail-delay: 250ms;">
+                            <a
+                                href="{{ route('marketplace.user', $owner) }}"
+                                class="dashboard-add-card dashboard-add-card-secondary"
+                            >
+                                View {{ $owner->name }}'s listings
+                            </a>
+
+                            @if ($viewer->id !== $owner->id)
+                                <form
+                                    action="{{ route('messages.listings.store', $listing) }}"
+                                    method="POST"
+                                    class="dashboard-inline-form"
+                                >
+                                    @csrf
+                                    <button type="submit" class="dashboard-add-card">
+                                        Message Seller
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
                     </div>
                 </section>
-            </section>
-        </main>
+
+        <div class="card-detail-fab-wrap">
+            @if ($listing->user_id === auth()->id())
+                <button
+                    type="button"
+                    class="card-detail-fab js-open-delete-modal"
+                    data-delete-url="{{ route('marketplace.destroy', $listing) }}"
+                    aria-label="Manage listing"
+                    title="Manage listing"
+                >
+                    ✏
+                </button>
+            @else
+                <a
+                    href="{{ route('marketplace.user', $owner) }}"
+                    class="card-detail-fab"
+                    aria-label="More options"
+                    title="View collector"
+                >
+                    ⋯
+                </a>
+            @endif
+        </div>
 
         <div class="delete-modal" id="deleteListingModal" aria-hidden="true">
             <div class="delete-modal-backdrop js-close-delete-modal"></div>
@@ -269,5 +270,6 @@
                 });
             });
         </script>
-    </body>
-</html>
+@endsection
+
+

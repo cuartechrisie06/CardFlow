@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CollectionCardController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExplorerController;
 use App\Http\Controllers\MarkConversationReadController;
@@ -24,10 +25,14 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::view('/', 'auth.login');
     Route::view('/login', 'auth.login')->name('login');
+    Route::get('/forgot-password', [ComingSoonController::class, 'forgotPassword'])->name('password.request');
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register.create');
     Route::post('/register', [RegisteredUserController::class, 'store'])->name('register.store');
 });
+
+Route::get('/collectors/{user:username}', [ProfileController::class, 'showcase'])
+    ->name('profile.showcase');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
@@ -51,6 +56,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/marketplace/cards/{marketplaceListing}', [MarketplaceCardController::class, 'show'])->name('marketplace.cards.show');
     Route::get('/marketplace/listings/{marketplaceListing}/edit', [MarketplaceController::class, 'edit'])->name('marketplace.edit');
     Route::put('/marketplace/listings/{marketplaceListing}', [MarketplaceController::class, 'update'])->name('marketplace.update');
+    Route::patch('/marketplace/listings/{marketplaceListing}/sold', [MarketplaceController::class, 'markAsSold'])->name('marketplace.sold');
+    Route::patch('/marketplace/listings/{marketplaceListing}/archive', [MarketplaceController::class, 'archive'])->name('marketplace.archive');
     Route::delete('/marketplace/listings/{marketplaceListing}', [MarketplaceController::class, 'destroy'])->name('marketplace.destroy');
     Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
     Route::post('/wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
@@ -64,10 +71,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/explorer/save-view', [ExplorerController::class, 'storeSavedView'])->name('explorer.saved-views.store');
     Route::get('/explorer/catalogs/{catalog}', [ExplorerController::class, 'show'])->name('explorer.catalogs.show');
     Route::post('/messages/listings/{marketplaceListing}', [OpenMarketplaceConversationController::class, 'store'])->name('messages.listings.store');
-    Route::post('/messages/start', [StartConversationController::class, 'store'])->name('messages.start');
-    Route::post('/messages', [SendMessageController::class, 'store'])->name('messages.store');
-    Route::post('/messages/{conversation}/read', [MarkConversationReadController::class, 'store'])->name('messages.read');
-    Route::get('/stats', StatsController::class)->name('stats.index');
     Route::get('/stats/export/pdf', [StatsController::class, 'exportPdf'])->name('stats.export.pdf');
     Route::get('/stats/export/csv', [StatsController::class, 'exportCsv'])->name('stats.export.csv');
     Route::post('/stats/share', [StatsController::class, 'shareSnapshot'])->name('stats.share');

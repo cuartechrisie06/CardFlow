@@ -1,52 +1,13 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | Wishlist</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $user = auth()->user();
-            $username = $user->username ?: 'collector';
-            $priorityLabel = fn (string $priority) => match ($priority) {
-                'high' => 'high priority',
-                'medium' => 'medium priority',
-                default => 'low priority',
-            };
-        @endphp
-        <main class="dashboard-shell">
-            <aside class="dashboard-sidebar">
-                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
-                    class="sidebar-brand sidebar-profile-link">
+@extends('layouts.app')
 
-                     <div class="sidebar-avatar"></div>
+@section('title', 'CardFlow | Wishlist')
+@section('body_class', 'dashboard-body')
 
-                    <div>
-                        <p>{{ $user->name }}</p>
-                    <span>{{ '@' . $username }}</span>
-                    </div>
-                </a>
+@section('topbar')
+@endsection
 
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link is-active">Wishlist</a>
-                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-                </nav>
-
-                @include('partials.sidebar-collector', ['user' => $user])
-            </aside>
-
-            <section class="dashboard-main">
-                <header class="dashboard-header wishlist-header">
+@section('content')
+<header class="dashboard-header wishlist-header">
                     <div>
                         <p class="dashboard-kicker">Wishlist & Matching</p>
                         <h1>Wishlist & matching</h1>
@@ -108,7 +69,14 @@
                                     </div>
                                 @endif
                             @empty
-                                <div class="collection-empty">No wishlist items yet. Add your first wanted card below.</div>
+                                <div class="collection-empty collection-empty-rich">
+                                    <div class="collection-empty-icon" aria-hidden="true">⭐</div>
+                                    <h3>Your wishlist is empty.</h3>
+                                    <p>Add cards you're looking for.</p>
+                                    <a href="#wishlist-add-form" class="dashboard-add-card">
+                                        + Add to Wishlist
+                                    </a>
+                                </div>
                             @endforelse
                         </div>
                     </article>
@@ -131,14 +99,21 @@
                                             $listedCard = $listing->card;
                                             $owner = $listing->user;
                                             $ownedCard = $listing->userCard;
-                                            $photoUrl = $ownedCard->photo_path ? \Illuminate\Support\Facades\Storage::url($ownedCard->photo_path) : null;
+                                            $photoUrl = $storagePhotoUrl($ownedCard->photo_path);
                                         @endphp
                                         <div class="wishlist-match-card">
                                             <div class="wishlist-match-meta">
                                                 <span class="mini-chip">{{ '@'.$owner->username }}</span>
                                                 <span class="mini-chip">{{ $ownedCard->is_for_sale ? 'For sale' : ($ownedCard->is_for_trade ? 'Open for trade' : 'Public listing') }}</span>
                                             </div>
-                                            <div class="wishlist-match-thumb {{ $photoUrl ? 'collection-thumb-photo' : $listedCard->thumbnail_style }}" @if ($photoUrl) style="background-image: url('{{ $photoUrl }}');" @endif></div>
+                                            <div class="wishlist-match-thumb card-media-ratio {{ $listedCard->thumbnail_style }}">
+                                                <img
+                                                    src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
+                                                    alt="{{ $listedCard->title }}"
+                                                    class="card-media-image"
+                                                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                                >
+                                            </div>
                                             <div class="wishlist-match-copy">
                                                 <strong>{{ $listedCard->title }}</strong>
                                                 <p>{{ $listedCard->artist }} • {{ $listedCard->album ?: 'Standalone release' }}</p>
@@ -207,7 +182,5 @@
                         </div>
                     </form>
                 </section>
-            </section>
-        </main>
-    </body>
-</html>
+@endsection
+

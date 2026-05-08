@@ -32,19 +32,11 @@ class OpenMarketplaceConversationController extends Controller
             ->first();
 
         if (! $conversation) {
-            $conversation = (clone $pairQuery)->first();
-        }
-
-        if (! $conversation) {
             $conversation = Conversation::query()->create([
                 'user_one_id' => $firstUserId,
                 'user_two_id' => $secondUserId,
                 'marketplace_listing_id' => $listing->id,
             ]);
-        } elseif (! $conversation->marketplace_listing_id && ! $conversation->messages()->exists()) {
-            $conversation->forceFill([
-                'marketplace_listing_id' => $listing->id,
-            ])->save();
         }
 
         $draftMessage = sprintf(

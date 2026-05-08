@@ -17,6 +17,8 @@ class StartConversationController extends Controller
 {
     public function create(Request $request): View
     {
+        $selectedRecipientId = $request->integer('recipient_id');
+
         $users = User::query()
             ->where('id', '!=', $request->user()->id)
             ->orderBy('name')
@@ -24,6 +26,7 @@ class StartConversationController extends Controller
 
         return view('messages.create', [
             'users' => $users,
+            'selectedRecipientId' => $selectedRecipientId,
         ]);
     }
 
@@ -70,28 +73,30 @@ class StartConversationController extends Controller
                 ->withValidParticipants()
                 ->betweenParticipants($firstUserId, $secondUserId);
 
-            $conversation = null;
-
             if ($listing) {
                 $conversation = (clone $pairQuery)
                     ->where('marketplace_listing_id', $listing->id)
                     ->first();
-            }
 
-            if (! $conversation) {
-                $conversation = (clone $pairQuery)->first();
-            }
+                if (! $conversation) {
+                    $conversation = Conversation::query()->create([
+                        'user_one_id' => $firstUserId,
+                        'user_two_id' => $secondUserId,
+                        'marketplace_listing_id' => $listing->id,
+                    ]);
+                }
+            } else {
+                $conversation = (clone $pairQuery)
+                    ->whereNull('marketplace_listing_id')
+                    ->first();
 
-            if (! $conversation) {
-                $conversation = Conversation::query()->create([
-                    'user_one_id' => $firstUserId,
-                    'user_two_id' => $secondUserId,
-                    'marketplace_listing_id' => $listing?->id,
-                ]);
-            } elseif ($listing && ! $conversation->marketplace_listing_id && ! $conversation->messages()->exists()) {
-                $conversation->forceFill([
-                    'marketplace_listing_id' => $listing->id,
-                ])->save();
+                if (! $conversation) {
+                    $conversation = Conversation::query()->create([
+                        'user_one_id' => $firstUserId,
+                        'user_two_id' => $secondUserId,
+                        'marketplace_listing_id' => null,
+                    ]);
+                }
             }
 
             $message = Message::query()->create([

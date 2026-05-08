@@ -1,45 +1,13 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | {{ $catalog['artist'] }}</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $user = auth()->user();
-            $username = $user->username ?: 'collector';
-            $formatMoney = fn (float|int $value) => 'PHP '.number_format((float) $value, 0);
-        @endphp
-        <main class="dashboard-shell">
-            <aside class="dashboard-sidebar">
-                <div class="sidebar-brand">
-                    <div class="sidebar-avatar"></div>
-                    <div>
-                        <p>{{ $user->name }}</p>
-                        <span>{{ '@'.$username }}</span>
-                    </div>
-                </div>
+@extends('layouts.app')
 
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link is-active">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-                </nav>
+@section('title', 'CardFlow | ' . $catalog['artist'])
+@section('body_class', 'dashboard-body')
 
-                @include('partials.sidebar-collector', ['user' => $user])
-            </aside>
+@section('topbar')
+@endsection
 
-            <section class="dashboard-main">
-                <header class="dashboard-header marketplace-header">
+@section('content')
+<header class="dashboard-header marketplace-header">
                     <div>
                         <p class="dashboard-kicker">Catalog detail</p>
                         <h1>{{ $catalog['artist'] }}</h1>
@@ -136,18 +104,17 @@
                                     ->latest('updated_at')
                                     ->value('photo_path');
 
-                                $photoUrl = $photoPath
-                                    ? \Illuminate\Support\Facades\Storage::url($photoPath)
-                                    : null;
+                                $photoUrl = $storagePhotoUrl($photoPath);
                             @endphp
 
                             <article class="collection-item-card">
-                                <div
-                                    class="marketplace-thumb {{ $photoUrl ? 'collection-thumb-photo' : ($card->thumbnail_style ?: 'market-thumb-one') }}"
-                                    @if ($photoUrl)
-                                        style="background-image: url('{{ $photoUrl }}');"
-                                    @endif
-                                >
+                                <div class="marketplace-thumb card-media-ratio {{ $card->thumbnail_style ?: 'market-thumb-one' }}">
+                                    <img
+                                        src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
+                                        alt="{{ $card->title }}"
+                                        class="card-media-image"
+                                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                    >
                                     <div class="marketplace-tags">
                                         <span class="collection-pill">{{ $card->rarity }}</span>
 
@@ -175,7 +142,6 @@
 
                     {{ $cards->links() }}
                 </section>
-            </section>
-        </main>
-    </body>
-</html>
+@endsection
+
+

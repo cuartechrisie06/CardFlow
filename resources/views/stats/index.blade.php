@@ -1,51 +1,20 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | Stats</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $user = auth()->user();
-            $username = $user->username ?: 'collector';
-            $formatMoney = fn (float|int $value) => 'PHP '.number_format((float) $value, 0);
-        @endphp
-        <main class="dashboard-shell">
-            <aside class="dashboard-sidebar">
-                <a href="{{ $user->username ? route('profile.show', $user->username) : route('profile.edit') }}"
-                    class="sidebar-brand sidebar-profile-link">
+@extends('layouts.app')
 
-                    <div class="sidebar-avatar"></div>
+@section('title', 'CardFlow | Stats')
+@section('body_class', 'dashboard-body')
 
-                <div>
-                            <p>{{ $user->name }}</p>
-                        <span>{{ '@' . $username }}</span>
-                    </div>
-                </a>
+@push('head')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+@endpush
 
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                    <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link is-active">Stats</a>
-                </nav>
+@section('topbar')
+@endsection
 
-                @include('partials.sidebar-collector', ['user' => $user])
-            </aside>
-
-            <section class="dashboard-main">
-                <header class="dashboard-header marketplace-header">
+@section('content')
+<header class="dashboard-header marketplace-header">
                     <div>
-                        <p class="dashboard-kicker">Collection insights</p>
-                        <h1>Collection insights</h1>
+                        <p class="dashboard-kicker">Collection Stats</p>
+                        <h1>Collection stats</h1>
                     </div>
 
                     <div class="dashboard-actions">
@@ -58,6 +27,34 @@
                 </header>
 
                 <section class="dashboard-card stats-shell">
+                    <section class="stats-chart-grid">
+                        <article class="dashboard-card stats-chart-card">
+                            <div class="card-topline">
+                                <div>
+                                    <p class="mini-label">Collection by Rarity</p>
+                                    <h2>Rarity Breakdown</h2>
+                                </div>
+                            </div>
+
+                            <div class="stats-chart-canvas-wrap">
+                                <canvas id="rarityBreakdownChart" aria-label="Collection by rarity chart" role="img"></canvas>
+                            </div>
+                        </article>
+
+                        <article class="dashboard-card stats-chart-card">
+                            <div class="card-topline">
+                                <div>
+                                    <p class="mini-label">Cards by Artist</p>
+                                    <h2>Top Artists</h2>
+                                </div>
+                            </div>
+
+                            <div class="stats-chart-canvas-wrap">
+                                <canvas id="artistBreakdownChart" aria-label="Cards by artist chart" role="img"></canvas>
+                            </div>
+                        </article>
+                    </section>
+
                     <section class="stats-grid explorer-stats">
                         <article class="stat-card">
                             <span class="stat-label">Total value</span>
@@ -236,7 +233,119 @@
                         </article>
                     </section>
                 </section>
-            </section>
-        </main>
-    </body>
-</html>
+@endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof Chart === 'undefined') {
+        return;
+    }
+
+    const rarityData = @json($rarityChartData);
+    const artistData = @json($artistChartData);
+    const sharedFont = "'DM Sans', sans-serif";
+    const sharedTextColor = '#6f5748';
+    const rarityColors = ['#8B4513', '#c8956c', '#e8c9a0', '#f5e6d8', '#6f4526', '#d8b391'];
+
+    const rarityCanvas = document.getElementById('rarityBreakdownChart');
+    if (rarityCanvas && rarityData.length > 0) {
+        new Chart(rarityCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: rarityData.map(item => item.label),
+                datasets: [{
+                    label: 'Collection by Rarity',
+                    data: rarityData.map(item => item.total),
+                    backgroundColor: rarityColors.slice(0, rarityData.length),
+                    borderColor: '#f8f1ea',
+                    borderWidth: 4,
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: sharedTextColor,
+                            font: { family: sharedFont, size: 12 },
+                            usePointStyle: true,
+                            padding: 18,
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#3f3028',
+                        titleFont: { family: sharedFont },
+                        bodyFont: { family: sharedFont },
+                    }
+                }
+            }
+        });
+    }
+
+    const artistCanvas = document.getElementById('artistBreakdownChart');
+    if (artistCanvas && artistData.length > 0) {
+        const context = artistCanvas.getContext('2d');
+        const gradient = context.createLinearGradient(0, 0, 0, 280);
+        gradient.addColorStop(0, '#c8956c');
+        gradient.addColorStop(1, '#6f4526');
+
+        new Chart(artistCanvas, {
+            type: 'bar',
+            data: {
+                labels: artistData.map(item => item.label),
+                datasets: [{
+                    label: 'Cards by Artist',
+                    data: artistData.map(item => item.total),
+                    backgroundColor: gradient,
+                    borderRadius: 10,
+                    borderSkipped: false,
+                    maxBarThickness: 44,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: {
+                            color: sharedTextColor,
+                            font: { family: sharedFont, size: 12 },
+                        },
+                        grid: {
+                            display: false,
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            color: sharedTextColor,
+                            font: { family: sharedFont, size: 12 },
+                        },
+                        grid: {
+                            color: 'rgba(139, 107, 85, 0.12)',
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        backgroundColor: '#3f3028',
+                        titleFont: { family: sharedFont },
+                        bodyFont: { family: sharedFont },
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+@endpush
+

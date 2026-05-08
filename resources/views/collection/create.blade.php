@@ -1,44 +1,13 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | Add Card</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="dashboard-body">
-        @php
-            $user = auth()->user();
-            $username = $user->username ?: 'collector';
-        @endphp
-        <main class="dashboard-shell">
-            <aside class="dashboard-sidebar">
-                <div class="sidebar-brand">
-                    <div class="sidebar-avatar"></div>
-                    <div>
-                        <p>{{ $user->name }}</p>
-                        <span>{{ '@'.$username }}</span>
-                    </div>
-                </div>
+@extends('layouts.app')
 
-                <nav class="sidebar-nav" aria-label="Primary">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                    <a href="{{ route('collection.index') }}" class="sidebar-link is-active">My Collection</a>
-                    <a href="{{ route('marketplace.index') }}" class="sidebar-link">Marketplace</a>
-                    <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                    <a href="#" class="sidebar-link">Messages</a>
-                    <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
-                    <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-                </nav>
+@section('title', 'CardFlow | Add Card')
+@section('body_class', 'dashboard-body')
 
-                @include('partials.sidebar-collector', ['user' => $user])
-            </aside>
+@section('topbar')
+@endsection
 
-            <section class="dashboard-main">
-                <header class="dashboard-header collection-header">
+@section('content')
+<header class="dashboard-header collection-header">
                     <div>
                         <p class="dashboard-kicker">My Collection</p>
                         <h1>Add a new card</h1>
@@ -95,6 +64,15 @@
 
                             <label class="field-group">
                                 <span>Photocard Photo</span>
+                                <div class="card-photo-preview-shell">
+                                    <img
+                                        src="{{ asset('images/placeholder-card.png') }}"
+                                        alt="Photocard preview"
+                                        class="card-photo-preview"
+                                        data-photo-preview
+                                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                    >
+                                </div>
                                 <input type="file" name="photo" class="field-file" accept="image/*" capture="environment">
                                 <small class="field-help">Upload a photo from your device or take one with your camera.</small>
                                 @error('photo') <small class="field-error">{{ $message }}</small> @enderror
@@ -168,7 +146,34 @@
                         </div>
                     </form>
                 </section>
-            </section>
-        </main>
-    </body>
-</html>
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.querySelector('input[name="photo"]');
+    const preview = document.querySelector('[data-photo-preview]');
+
+    if (!input || !preview) {
+        return;
+    }
+
+    input.addEventListener('change', function (event) {
+        const file = event.target.files && event.target.files[0];
+
+        if (!file) {
+            preview.src = '{{ asset('images/placeholder-card.png') }}';
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function (loadEvent) {
+            preview.src = loadEvent.target?.result || '{{ asset('images/placeholder-card.png') }}';
+        };
+
+        reader.readAsDataURL(file);
+    });
+});
+</script>
+@endpush
+@endsection
+

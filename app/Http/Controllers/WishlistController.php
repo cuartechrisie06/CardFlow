@@ -40,11 +40,19 @@ class WishlistController extends Controller
             ->filter(fn (WishlistItem $item) => $matchesByWishlist->get($item->id, collect())->isNotEmpty())
             ->values();
 
+        $priorityLabel = fn ($p) => match ($p) {
+            'high', 1 => 'High',
+            'medium', 2 => 'Medium',
+            'low', 3 => 'Low',
+            default => 'Normal',
+        };
+
         return view('wishlist.index', [
             'wishlistItems' => $wishlistItems,
             'activeMatches' => $activeMatches,
             'matchesByWishlist' => $matchesByWishlist,
             'search' => $search,
+            'priorityLabel' => $priorityLabel,
         ]);
     }
 
@@ -73,16 +81,32 @@ class WishlistController extends Controller
             ]
         );
 
-        WishlistItem::query()->create([
-            'user_id' => $request->user()->id,
-            'card_id' => $card->id,
-            'priority' => $validated['priority'],
-            'target_price' => $validated['target_price'] ?? null,
-            'matched_at' => null,
-        ]);
+        [$wishlistItem, $created] = (function () use ($request, $card, $validated) {
+            $item = WishlistItem::query()->firstOrNew([
+                'user_id' => $request->user()->id,
+                'card_id' => $card->id,
+            ]);
+
+            $created = ! $item->exists;
+
+            $item->fill([
+                'priority' => $validated['priority'],
+                'target_price' => $validated['target_price'] ?? null,
+            ]);
+
+            if ($created) {
+                $item->matched_at = null;
+            }
+
+            $item->save();
+
+            return [$item, $created];
+        })();
 
         return redirect()->route('wishlist.index')
-            ->with('status', 'Card added to your wishlist.');
+            ->with('status', $created
+                ? 'Card added to your wishlist.'
+                : 'That card is already on your wishlist, so we updated the existing entry.');
     }
 
     public function destroy(Request $request, WishlistItem $wishlistItem): RedirectResponse

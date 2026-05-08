@@ -17,38 +17,20 @@ use Illuminate\Support\Str;
 
 class ExplorerController extends Controller
 {
-    protected array $girlGroups = [
-        'BLACKPINK',
-        'Aespa',
-        'NewJeans',
-        'IVE',
-        'Le Sserafim',
-        'Itzy',
-        'NMIXX',
-        'Twice',
-        'Red Velvet',
-        '(G)I-DLE',
-        'ILLIT',
-        'BABYMONSTER',
-    ];
-
-    protected array $fourthGenGroups = [
-        'Aespa',
-        'IVE',
-        'Le Sserafim',
-        'Itzy',
-        'NMIXX',
-        'ILLIT',
-        'BABYMONSTER',
-    ];
-
     public function __invoke(Request $request): View
     {
         $search = trim((string) $request->string('q'));
         $filter = (string) $request->string('filter', 'by_group');
 
         $cardsQuery = $this->filteredCardsQuery($search, $filter);
-        $catalogs = $this->catalogMetrics((clone $cardsQuery)->get());
+        $filteredCards = (clone $cardsQuery)
+            ->withCount([
+                'wishlistItems',
+                'marketplaceListings as active_listings_count' => fn (Builder $query) => $query->activeVisible(),
+                'trades',
+            ])
+            ->get();
+        $catalogs = $this->catalogMetrics($filteredCards);
 
         $averageTradeValue = (float) MarketplaceListing::query()
             ->activeVisible()
@@ -74,8 +56,8 @@ class ExplorerController extends Controller
                 ];
             });
 
-        $categoryBars = $this->buildCategoryDemandBars(clone $cardsQuery);
-        $quickPicks = $this->buildQuickPicks(clone $cardsQuery);
+        $categoryBars = $this->buildCategoryDemandBars($filteredCards);
+        $quickPicks = $this->buildQuickPicks($filteredCards);
 
         return view('explorer.index', [
             'search' => $search,
@@ -84,14 +66,12 @@ class ExplorerController extends Controller
                 'items' => [
                     'by_group' => 'By Group',
                     'by_idol' => 'By Idol',
-                    'girl_groups' => 'Girl Groups',
-                    '4th_gen' => '4th Gen',
                     'high_value' => 'High Value',
                 ],
             ],
             'metrics' => [
                 'groups_indexed' => $catalogs->count(),
-                'total_cards' => (clone $cardsQuery)->count(),
+                'total_cards' => $filteredCards->count(),
                 'average_trade_value' => round($averageTradeValue),
                 'hottest_artist' => $hottestTrend['artist'] ?? 'No data yet',
             ],
@@ -152,14 +132,12 @@ class ExplorerController extends Controller
             'search' => $search,
             'filters' => [
                 'active' => $filter,
-                'items' => [
-                    'by_group' => 'By Group',
-                    'by_idol' => 'By Idol',
-                    'girl_groups' => 'Girl Groups',
-                    '4th_gen' => '4th Gen',
-                    'high_value' => 'High Value',
-                ],
+            'items' => [
+                'by_group' => 'By Group',
+                'by_idol' => 'By Idol',
+                'high_value' => 'High Value',
             ],
+        ],
             'catalog' => $metrics,
             'eras' => $eras,
             'cards' => $cards,
@@ -220,8 +198,6 @@ class ExplorerController extends Controller
 
         return match ($filter) {
             'by_idol' => $query->orderBy('title')->orderBy('artist'),
-            'girl_groups' => $query->whereIn('artist', $this->girlGroups)->orderBy('artist')->orderBy('title'),
-            '4th_gen' => $query->whereIn('artist', $this->fourthGenGroups)->orderBy('artist')->orderBy('title'),
             'high_value' => $query->where(function (Builder $nested) {
                 $nested->where('market_value', '>=', 1500)
                     ->orWhereHas('marketplaceListings', fn (Builder $listingQuery) => $listingQuery->activeVisible()->whereHas('userCard', fn (Builder $userCardQuery) => $userCardQuery->where('listing_price', '>=', 1500)));
@@ -282,16 +258,8 @@ class ExplorerController extends Controller
         })->values();
     }
 
-    protected function buildCategoryDemandBars(Builder $cardsQuery): Collection
+    protected function buildCategoryDemandBars(Collection $cards): Collection
     {
-        $cards = (clone $cardsQuery)
-            ->withCount([
-                'wishlistItems',
-                'marketplaceListings as active_listings_count' => fn (Builder $query) => $query->activeVisible(),
-                'trades',
-            ])
-            ->get();
-
         $grouped = $cards->groupBy(fn (Card $card) => $card->rarity ?: 'Standard')
             ->map(function (Collection $groupCards, string $label) {
                 return [
@@ -310,15 +278,8 @@ class ExplorerController extends Controller
         ]);
     }
 
-    protected function buildQuickPicks(Builder $cardsQuery): Collection
+    protected function buildQuickPicks(Collection $cards): Collection
     {
-        $cards = (clone $cardsQuery)
-            ->withCount([
-                'wishlistItems',
-                'marketplaceListings as active_listings_count' => fn (Builder $query) => $query->activeVisible(),
-            ])
-            ->get();
-
         $bestValue = $cards->groupBy('artist')
             ->map(fn (Collection $artistCards, string $artist) => [
                 'label' => 'Best value catalog',
@@ -359,8 +320,6 @@ class ExplorerController extends Controller
         $filterName = [
             'by_group' => 'By Group',
             'by_idol' => 'By Idol',
-            'girl_groups' => 'Girl Groups',
-            '4th_gen' => '4th Gen',
             'high_value' => 'High Value',
         ][$filter] ?? 'Explorer';
 

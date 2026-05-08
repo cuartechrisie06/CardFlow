@@ -1,129 +1,118 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CardFlow | Card Details</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="dashboard-body">
-    @php
-        $user = auth()->user();
-        $username = $user->username ?: 'collector';
-        $formatMoney = fn (float|int $value) => 'PHP '.number_format((float) $value, 0);
-        $card = $userCard->card;
+@extends('layouts.app')
 
-        $imagePath = $userCard->photo_path
-            ? asset('storage/' . $userCard->photo_path)
-            : asset('storage/cards/' . ($card->thumbnail_style ?? ''));
+@section('title', 'CardFlow | Collection Item Details')
+@section('body_class', 'dashboard-body card-details-page')
 
-        $collectorName = auth()->user()->name ?? auth()->user()->username ?? 'Collector';
-    @endphp
+@section('topbar')
+@endsection
 
-    <main class="dashboard-shell">
-        <!-- Sidebar Section -->
-        <aside class="dashboard-sidebar">
-            <div class="sidebar-brand">
-                <div class="sidebar-avatar"></div>
+@section('content')
+<header class="dashboard-header marketplace-header card-details-header">
                 <div>
-                    <p>{{ $user->name }}</p>
-                    <span>{{ '@'.$username }}</span>
+                    <p class="dashboard-kicker">Collection Item</p>
+                    <p class="card-details-eyebrow">Collection showcase</p>
+                    <h1>{{ $card->title ?? 'Collection Item Details' }}</h1>
+                    <p class="dashboard-intro">A closer look at this collection item from your personal collection.</p>
                 </div>
-            </div>
 
-            <nav class="sidebar-nav" aria-label="Primary">
-                <a href="{{ route('dashboard') }}" class="sidebar-link">Dashboard</a>
-                <a href="{{ route('collection.index') }}" class="sidebar-link is-active">My Collection</a>
-                <a href="{{ route('marketplace.index') }}" class="sidebar-link ">Marketplace</a>
-                <a href="{{ route('wishlist.index') }}" class="sidebar-link">Wishlist</a>
-                <a href="{{ route('messages.index') }}" class="sidebar-link">Messages</a>
-                <a href="{{ route('explorer.index') }}" class="sidebar-link">Explorer</a>
-                <a href="{{ route('stats.index') }}" class="sidebar-link">Stats</a>
-            </nav>
-        </aside>
-        
+                <div class="dashboard-actions card-details-actions">
+                    <a href="{{ route('collection.index') }}" class="card-details-back-button">← Back to Collection</a>
+                </div>
+            </header>
 
-        <!-- Main Content Section -->
-        <section class="dashboard-CardDetails/main">
-            <div class="content">
-                <div class="card-details-container">
-                    <!-- Card Image Section -->
-                    <div class="card-image">
-                        <img src="{{ $imagePath }}" alt="{{ $card->title }}">
-                    </div>
-
-                    <!-- Card Information Section -->
-                    <div class="card-info">
-
-                        <p class="dashboard-kicker">Card Details</p>
-                        
-                        <a href="{{ route('collection.index') }}" class="back-btn">← Back to Collection</a>
-
-                        <div class="info-row">
-                            <div class="info-label">Artist / Group</div>
-                            <div class="info-value">{{ $card->artist ?? 'Not Available' }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Card Title</div>
-                            <div class="info-value">{{ $card->title ?? 'Not Available' }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Album</div>
-                            <div class="info-value">{{ $card->album ?? 'Not Available' }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Edition</div>
-                            <div class="info-value">{{ $card->edition ?? 'Not Available' }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Rarity</div>
-                            <div class="info-value">{{ $card->rarity ?? 'Not Available' }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Market Value</div>
-                            <div class="info-value">PHP {{ number_format((float) ($card->market_value ?? 0), 2) }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Purchase Price</div>
-                            <div class="info-value">PHP {{ number_format((float) ($userCard->purchase_price ?? 0), 2) }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Estimated Value</div>
-                            <div class="info-value">PHP {{ number_format((float) ($userCard->estimated_value ?? 0), 2) }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Condition</div>
-                            <div class="info-value">{{ $userCard->condition ?? 'Not Available' }}</div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Acquired At</div>
-                            <div class="info-value">
-                                {{ $userCard->acquired_at ? \Carbon\Carbon::parse($userCard->acquired_at)->format('m/d/Y') : 'Not Available' }}
-                            </div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-label">Notes</div>
-                            <div class="info-value">{{ $userCard->notes ?? 'No notes added.' }}</div>
+            <section class="dashboard-card card-detail-shell card-detail-shell-premium">
+                <div class="card-detail-media-column">
+                    <div class="card-detail-media-frame rarity-{{ \Illuminate\Support\Str::slug($rarityLabel) }}">
+                        <div class="card-detail-media card-detail-media-premium">
+                            <img
+                                src="{{ $imagePath }}"
+                                alt="{{ $card->title }}"
+                                class="card-detail-media-image"
+                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                            >
+                            <div class="card-detail-media-overlay"></div>
+                            <span class="card-detail-rarity-badge">Rare · {{ $rarityLabel }}</span>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
-    </main>
 
-    <a href="{{ route('collection.edit', $userCard) }}" class="edit-btn">✎</a>
-</body>
-</html>
+                <div class="card-detail-copy card-detail-copy-premium">
+                    <section class="card-detail-hero card-detail-fade" style="--card-detail-delay: 0ms;">
+                        <p class="mini-label">Artist / Group</p>
+                        <h2>{{ $card->artist ?? 'Not Available' }}</h2>
+                        <p class="card-detail-title-display">{{ $card->title ?? 'Not Available' }}</p>
+                    </section>
+
+                    <div class="card-detail-divider"></div>
+
+                    <section class="card-detail-chip-grid card-detail-fade" style="--card-detail-delay: 50ms;">
+                        <article class="card-detail-chip">
+                            <span class="summary-label">Album</span>
+                            <strong>{{ $card->album ?: 'Standalone' }}</strong>
+                        </article>
+                        <article class="card-detail-chip">
+                            <span class="summary-label">Edition</span>
+                            <strong>{{ $card->edition ?: 'Standard' }}</strong>
+                        </article>
+                        <article class="card-detail-chip">
+                            <span class="summary-label">Rarity</span>
+                            <strong>{{ $rarityLabel }}</strong>
+                        </article>
+                    </section>
+
+                    <section class="card-detail-support-grid card-detail-fade" style="--card-detail-delay: 100ms;">
+                        <article class="card-detail-chip">
+                            <span class="summary-label">Condition</span>
+                            <strong>{{ $userCard->condition ?? 'Not Available' }}</strong>
+                        </article>
+                        <article class="card-detail-chip">
+                            <span class="summary-label">Acquired</span>
+                            <strong>{{ $userCard->acquired_at ? \Carbon\Carbon::parse($userCard->acquired_at)->format('M d, Y') : 'Not Available' }}</strong>
+                        </article>
+                        <article class="card-detail-chip">
+                            <span class="summary-label">Collection</span>
+                            <strong>Personal binder</strong>
+                        </article>
+                    </section>
+
+                    <div class="card-detail-divider"></div>
+
+                    <section class="card-financial-summary card-detail-fade" style="--card-detail-delay: 150ms;">
+                        <div class="card-financial-grid">
+                            <article class="card-financial-chip">
+                                <span class="summary-label">Market Value</span>
+                                <strong>PHP {{ number_format($marketValue, 2) }}</strong>
+                                @if($userCard->price_trend === 'rising')
+                                    <span class="trend rising">▲ Rising</span>
+                                @elseif($userCard->price_trend === 'falling')
+                                    <span class="trend falling">▼ Falling</span>
+                                @else
+                                    <span class="trend stable">● Stable</span>
+                                @endif
+                            </article>
+                            <article class="card-financial-chip">
+                                <span class="summary-label">Purchase Price</span>
+                                <strong>PHP {{ number_format($purchasePrice, 2) }}</strong>
+                            </article>
+                            <article class="card-financial-chip">
+                                <span class="summary-label">Estimated Value</span>
+                                <strong>PHP {{ number_format($estimatedValue, 2) }}</strong>
+                            </article>
+                        </div>
+
+                        <div class="card-detail-profit {{ $isPositiveDelta ? 'is-positive' : 'is-negative' }}">
+                            <span class="summary-label">Net change</span>
+                            <strong>{{ $isPositiveDelta ? '+' : '-' }}PHP {{ number_format(abs($valueDelta), 2) }}</strong>
+                        </div>
+                    </section>
+
+                    <section class="dashboard-card card-note-shell card-detail-fade" style="--card-detail-delay: 200ms;">
+                        <p class="mini-label">Notes</p>
+                        <p>{{ $userCard->notes ?: 'No notes added yet.' }}</p>
+                    </section>
+                </div>
+            </section>
+
+    <a href="{{ route('collection.edit', $userCard) }}" class="card-detail-fab" aria-label="Edit card" title="Edit card">✏</a>
+@endsection
+

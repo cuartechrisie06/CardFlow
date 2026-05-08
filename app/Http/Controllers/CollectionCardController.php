@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Card;
+use App\Models\Conversation;
 use App\Models\MarketplaceListing;
+use App\Models\Trade;
 use App\Models\UserCard;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -21,18 +23,41 @@ class CollectionCardController extends Controller
     }
 
     public function show(UserCard $userCard)
-{
-    // Load the related 'card' data
-    $userCard->load('card');
+    {
+        $this->authorize('view', $userCard);
 
-    // Determine the image path
-    $imagePath = $userCard->photo_path
-        ? asset('storage/' . $userCard->photo_path)
-        : asset('storage/cards/' . ($userCard->card->thumbnail_style ?? 'default.jpg'));
+        $userCard->load('card');
 
-    // Pass the data (including image path) to the view
-    return view('cards.show', compact('userCard', 'imagePath'));
-}
+        $card = $userCard->card;
+        $imagePath = $userCard->photo_path && Storage::disk('public')->exists($userCard->photo_path)
+            ? asset('storage/' . $userCard->photo_path)
+            : asset('storage/cards/' . ($card->thumbnail_style ?? 'default.jpg'));
+
+        $rarityLabel = match ($card->rarity) {
+            'R' => 'Rare',
+            'SR' => 'Super Rare',
+            'UR' => 'Ultra Rare',
+            default => $card->rarity,
+        };
+
+        $marketValue = (float) ($card->market_value ?? 0);
+        $purchasePrice = (float) ($userCard->purchase_price ?? 0);
+        $estimatedValue = (float) ($userCard->estimated_value ?? $marketValue);
+        $valueDelta = $estimatedValue - $purchasePrice;
+        $isPositiveDelta = $valueDelta >= 0;
+
+        return view('cards.show', compact(
+            'userCard',
+            'card',
+            'imagePath',
+            'rarityLabel',
+            'marketValue',
+            'purchasePrice',
+            'estimatedValue',
+            'valueDelta',
+            'isPositiveDelta'
+        ));
+    }
 
     
 
@@ -223,14 +248,40 @@ class CollectionCardController extends Controller
     }
 public function destroy(\App\Models\UserCard $userCard)
 {
-    abort_unless($userCard->user_id === auth()->id(), 403);
+    $this->authorize('delete', $userCard);
+
+    $marketplaceListing = $userCard->marketplaceListing()->first();
+
+    if ($marketplaceListing?->status === 'active' && $marketplaceListing->is_visible) {
+        return redirect()
+            ->route('collection.index')
+            ->withErrors([
+                'card' => 'Archive or remove the active marketplace listing before deleting this card.',
+            ]);
+    }
+
+    if ($marketplaceListing && Conversation::query()->where('marketplace_listing_id', $marketplaceListing->id)->exists()) {
+        return redirect()
+            ->route('collection.index')
+            ->withErrors([
+                'card' => 'This card is linked to a message thread. Keep the card or clear the listing conversation first.',
+            ]);
+    }
+
+    if (Trade::query()->where('user_id', auth()->id())->where('card_id', $userCard->card_id)->exists()) {
+        return redirect()
+            ->route('collection.index')
+            ->withErrors([
+                'card' => 'This card is part of your trade history and cannot be deleted safely.',
+            ]);
+    }
 
     \Illuminate\Support\Facades\DB::transaction(function () use ($userCard) {
         \App\Models\MarketplaceListing::query()
             ->where('user_card_id', $userCard->id)
             ->where('user_id', auth()->id())
             ->update([
-                'status' => 'inactive',
+                'status' => 'archived',
                 'is_visible' => false,
             ]);
 

@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'username', 'email', 'password'])]
+#[Fillable(['name', 'username', 'email', 'password', 'avatar', 'bio', 'location', 'website'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -78,5 +79,39 @@ class User extends Authenticatable
     public function savedViews(): HasMany
     {
         return $this->hasMany(SavedView::class);
+    }
+
+    public function getCompletedTradesCountAttribute(): int
+    {
+        if (array_key_exists('completed_trades_count', $this->attributes)) {
+            return (int) $this->attributes['completed_trades_count'];
+        }
+
+        return (int) $this->trades()
+            ->where('status', 'completed')
+            ->count();
+    }
+
+    public function getSellerBadgeAttribute(): ?string
+    {
+        return $this->completed_trades_count >= 3
+            ? 'Verified Seller'
+            : null;
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar && Storage::disk('public')->exists($this->avatar)
+            ? Storage::url($this->avatar)
+            : null;
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        return collect(preg_split('/\s+/', trim($this->name)))
+            ->filter()
+            ->take(2)
+            ->map(fn ($part) => strtoupper(mb_substr($part, 0, 1)))
+            ->implode('');
     }
 }

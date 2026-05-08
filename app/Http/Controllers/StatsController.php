@@ -20,13 +20,44 @@ class StatsController extends Controller
             ->join('cards', 'cards.id', '=', 'user_cards.card_id')
             ->sum(DB::raw('coalesce(user_cards.estimated_value, cards.market_value)'));
 
-        $tradeBase = $user->trades()->count();
-        $completedTrades = $user->trades()->where('status', 'completed')->count();
+        $rarityChartData = DB::table('user_cards')
+            ->join('cards', 'cards.id', '=', 'user_cards.card_id')
+            ->where('user_cards.user_id', $user->id)
+            ->selectRaw("COALESCE(NULLIF(cards.rarity, ''), 'Standard') as label, COUNT(*) as total")
+            ->groupBy('label')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'label' => $row->label,
+                'total' => (int) $row->total,
+            ]);
+
+        $artistChartData = DB::table('user_cards')
+            ->join('cards', 'cards.id', '=', 'user_cards.card_id')
+            ->where('user_cards.user_id', $user->id)
+            ->selectRaw("COALESCE(NULLIF(cards.artist, ''), 'Unknown Artist') as label, COUNT(*) as total")
+            ->groupBy('label')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => [
+                'label' => $row->label,
+                'total' => (int) $row->total,
+            ]);
+
+        $tradeStats = DB::table('trades')
+            ->where('user_id', $user->id)
+            ->selectRaw("
+                COUNT(*) as trade_total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_total,
+                SUM(CASE WHEN status = 'completed' AND completed_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as completed_this_week
+            ", [now()->startOfWeek(), now()->endOfWeek()])
+            ->first();
+
+        $tradeBase = (int) ($tradeStats->trade_total ?? 0);
+        $completedTrades = (int) ($tradeStats->completed_total ?? 0);
         $completionRate = $tradeBase > 0 ? round(($completedTrades / $tradeBase) * 100) : 0;
-        $successfulTradesThisWeek = $user->trades()
-            ->where('status', 'completed')
-            ->whereBetween('completed_at', [now()->startOfWeek(), now()->endOfWeek()])
-            ->count();
+        $successfulTradesThisWeek = (int) ($tradeStats->completed_this_week ?? 0);
 
         $averageTradeScore = $this->buildAverageTradeScore($user->id);
         $growthChart = $this->buildGrowthChart($user->id);
@@ -43,6 +74,8 @@ class StatsController extends Controller
                 'average_trade_score' => $averageTradeScore,
                 'trade_total' => $tradeBase,
             ],
+            'rarityChartData' => $rarityChartData,
+            'artistChartData' => $artistChartData,
             'growthChart' => $growthChart,
             'artistDistribution' => $artistDistribution,
             'rarityBreakdown' => $rarityBreakdown,
@@ -53,20 +86,23 @@ class StatsController extends Controller
 
     protected function buildAverageTradeScore(int $userId): float
     {
-        $scoreMap = collect([
-            'completed' => 5.0,
-            'in_progress' => 4.0,
-            'new_offer' => 3.5,
-            'pending' => 3.0,
-            'cancelled' => 1.5,
-        ]);
-
-        $scores = Trade::query()
+        $score = DB::table('trades')
             ->where('user_id', $userId)
-            ->pluck('status')
-            ->map(fn (string $status) => $scoreMap[$status] ?? 2.5);
+            ->selectRaw("
+                AVG(
+                    CASE status
+                        WHEN 'completed' THEN 5.0
+                        WHEN 'in_progress' THEN 4.0
+                        WHEN 'new_offer' THEN 3.5
+                        WHEN 'pending' THEN 3.0
+                        WHEN 'cancelled' THEN 1.5
+                        ELSE 2.5
+                    END
+                ) as average_score
+            ")
+            ->value('average_score');
 
-        return $scores->isEmpty() ? 0.0 : round($scores->avg(), 2);
+        return round((float) ($score ?? 0), 2);
     }
 
     protected function buildGrowthChart(int $userId): array
@@ -74,21 +110,20 @@ class StatsController extends Controller
         $months = collect(range(5, 0))
             ->map(fn (int $offset) => now()->startOfMonth()->subMonths($offset));
 
-        $points = $months->map(function (Carbon $month) use ($userId) {
-            $count = DB::table('user_cards')
-                ->where('user_id', $userId)
-                ->where(function ($query) use ($month) {
-                    $query->whereBetween('acquired_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
-                        ->orWhere(function ($nested) use ($month) {
-                            $nested->whereNull('acquired_at')
-                                ->whereBetween('created_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()]);
-                        });
-                })
-                ->count();
+        $rows = DB::table('user_cards')
+            ->where('user_id', $userId)
+            ->selectRaw('COALESCE(acquired_at, created_at) as effective_date')
+            ->get();
 
+        $countsByMonth = $rows
+            ->filter(fn ($row) => $row->effective_date !== null)
+            ->groupBy(fn ($row) => Carbon::parse($row->effective_date)->format('Y-m'))
+            ->map->count();
+
+        $points = $months->map(function (Carbon $month) use ($countsByMonth) {
             return [
                 'label' => $month->format('M'),
-                'value' => (int) $count,
+                'value' => (int) ($countsByMonth[$month->format('Y-m')] ?? 0),
             ];
         });
 
@@ -164,16 +199,18 @@ class StatsController extends Controller
 
     protected function buildTradeHealth(int $userId): array
     {
-        $recentTrades = Trade::query()
+        $tradeStats = DB::table('trades')
             ->where('user_id', $userId)
-            ->whereIn('status', ['pending', 'new_offer', 'in_progress', 'completed'])
-            ->count();
+            ->selectRaw("
+                SUM(CASE WHEN status IN ('pending', 'new_offer', 'in_progress', 'completed') THEN 1 ELSE 0 END) as recent_trades,
+                SUM(CASE WHEN replied_at IS NOT NULL THEN 1 ELSE 0 END) as reply_trades,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_trades,
+                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as disputes
+            ")
+            ->first();
 
-        $replyTrades = Trade::query()
-            ->where('user_id', $userId)
-            ->whereNotNull('replied_at')
-            ->count();
-
+        $recentTrades = (int) ($tradeStats->recent_trades ?? 0);
+        $replyTrades = (int) ($tradeStats->reply_trades ?? 0);
         $replyRate = $recentTrades > 0 ? (int) round(($replyTrades / $recentTrades) * 100) : 0;
 
         return [
@@ -182,26 +219,37 @@ class StatsController extends Controller
                 : 'No trade activity yet. Start listing or trading cards to build stats.',
             'avg_reply' => $recentTrades > 0 ? max(1, (int) round(($recentTrades * 18) / max($replyTrades, 1))) : 0,
             'reply_score' => $replyRate,
-            'completed' => Trade::query()->where('user_id', $userId)->where('status', 'completed')->count(),
-            'disputes' => Trade::query()->where('user_id', $userId)->where('status', 'cancelled')->count(),
+            'completed' => (int) ($tradeStats->completed_trades ?? 0),
+            'disputes' => (int) ($tradeStats->disputes ?? 0),
         ];
     }
 
     protected function buildQuickExports(int $userId, float $totalValue): array
     {
-        $listedCards = DB::table('user_cards')
+        $userCardStats = DB::table('user_cards')
             ->where('user_id', $userId)
-            ->where('is_listed', true)
-            ->count();
+            ->selectRaw("
+                COUNT(*) as portfolio_cards,
+                SUM(CASE WHEN is_listed = 1 THEN 1 ELSE 0 END) as listed_cards
+            ")
+            ->first();
 
-        $completionBase = Trade::query()->where('user_id', $userId)->count();
+        $tradeStats = DB::table('trades')
+            ->where('user_id', $userId)
+            ->selectRaw("
+                COUNT(*) as trade_total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_total
+            ")
+            ->first();
+
+        $completionBase = (int) ($tradeStats->trade_total ?? 0);
         $completionRate = $completionBase > 0
-            ? (int) round((Trade::query()->where('user_id', $userId)->where('status', 'completed')->count() / $completionBase) * 100)
+            ? (int) round((((int) ($tradeStats->completed_total ?? 0)) / $completionBase) * 100)
             : 0;
 
         return [
-            'portfolio_cards' => DB::table('user_cards')->where('user_id', $userId)->count(),
-            'listed_cards' => $listedCards,
+            'portfolio_cards' => (int) ($userCardStats->portfolio_cards ?? 0),
+            'listed_cards' => (int) ($userCardStats->listed_cards ?? 0),
             'portfolio_value' => round($totalValue),
             'completion_rate' => $completionRate,
         ];

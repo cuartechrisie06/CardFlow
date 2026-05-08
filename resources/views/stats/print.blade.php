@@ -1,13 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Collection Stats Summary</title>
-    @vite(['resources/css/app.css'])
-</head>
+@extends('layouts.app')
 
-<body class="stats-print-body">
-    <div class="stats-print-toolbar">
+@section('title', 'Collection Stats Summary')
+@section('layout_mode', 'shellless')
+@section('body_class', 'stats-print-body')
+
+@section('content')
+<div class="stats-print-toolbar">
         <a href="{{ route('stats.index') }}" class="stats-print-back-button">
             Back to Stats
         </a>
@@ -18,7 +16,7 @@
     </div>
 
     <main class="stats-print-report">
-        <div class="stats-print-eyebrow">Collection Insights</div>
+        <div class="stats-print-eyebrow">Collection Stats</div>
 
         <h1 class="stats-print-title">Collection Stats Summary</h1>
 
@@ -53,5 +51,5 @@
             </div>
         </section>
     </main>
-</body>
-</html>
+@endsection
+

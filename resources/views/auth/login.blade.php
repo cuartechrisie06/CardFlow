@@ -1,16 +1,11 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>CardFlow | Account Access</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="cardflow-body">
-        @php
+@extends('layouts.app')
+
+@section('title', 'CardFlow | Account Access')
+@section('layout_mode', 'shellless')
+@section('body_class', 'cardflow-body')
+
+@section('content')
+@php
             $authMode = session('auth_mode');
 
             if (! $authMode) {
@@ -106,7 +101,7 @@
                                         <small class="field-error">{{ $message }}</small>
                                     @enderror
                                 </label>
-                                <a href="#" class="field-link">Forgot?</a>
+                                <a href="{{ route('password.request') }}" class="field-link">Forgot?</a>
                             </div>
 
                             <div class="form-meta">
@@ -120,7 +115,7 @@
                             <button type="submit" class="submit-button">Sign in</button>
                         </form>
 
-                        <p class="signup-copy">Need a new account? <a href="#" data-auth-link="signup">Create one</a></p>
+                        <p class="signup-copy">Need a new account? <button type="button" class="field-link auth-inline-link" data-auth-link="signup">Create one</button></p>
                     </div>
 
                     <div class="auth-pane {{ $authMode === 'signup' ? 'is-active' : '' }}" data-auth-pane="signup" @if ($authMode !== 'signup') hidden @endif>
@@ -128,7 +123,7 @@
                         <h2>Start your trading hub</h2>
                         <p class="auth-copy">Set up your profile and start organizing your photocard collection in one place.</p>
 
-                        <form class="auth-form" action="{{ route('register.create') }}" method="POST">
+                        <form class="auth-form" action="{{ route('register.store') }}" method="POST">
                             @csrf
                             <div class="field-two-up">
                                 <label class="field-group">
@@ -183,10 +178,10 @@
                             <button type="submit" class="submit-button">Create account</button>
                         </form>
 
-                        <p class="signup-copy">Already have an account? <a href="#" data-auth-link="signin">Sign in</a></p>
+                        <p class="signup-copy">Already have an account? <button type="button" class="field-link auth-inline-link" data-auth-link="signin">Sign in</button></p>
                     </div>
                 </div>
             </section>
         </main>
-    </body>
-</html>
+@endsection
+

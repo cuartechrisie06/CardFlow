@@ -38,6 +38,7 @@ class MessagesController extends Controller
                     ->latest('created_at'),
                 'marketplaceListing.card:id,title,artist,album',
                 'marketplaceListing.user:id,name,username',
+                'marketplaceListing.userCard:id,card_id,photo_path,listing_price,is_for_sale,is_for_trade',
             ])
             ->when($search !== '', function ($query) use ($search, $user) {
                 $query->where(function ($nested) use ($search, $user) {
@@ -76,6 +77,7 @@ class MessagesController extends Controller
                         ->latest('created_at'),
                     'marketplaceListing.card:id,title,artist,album',
                     'marketplaceListing.user:id,name,username',
+                    'marketplaceListing.userCard:id,card_id,photo_path,listing_price,is_for_sale,is_for_trade',
                     'messages' => fn ($query) => $query
                         ->withValidRelations()
                         ->with(['sender:id,name,username', 'receiver:id,name,username'])
@@ -108,7 +110,11 @@ class MessagesController extends Controller
 
             $activeListing = MarketplaceListing::query()
                 ->activeVisible()
-                ->with(['card:id,title,artist,album', 'user:id,name,username'])
+                ->with([
+                    'card:id,title,artist,album,thumbnail_style',
+                    'user:id,name,username',
+                    'userCard:id,card_id,photo_path,listing_price,is_for_sale,is_for_trade',
+                ])
                 ->whereKey($composeListingId)
                 ->when($otherParticipant, fn ($query) => $query->where('user_id', $otherParticipant->id))
                 ->first();
@@ -128,8 +134,9 @@ class MessagesController extends Controller
             ->get();
 
         return view('messages.index', [
-            'search' => $search,
             'conversations' => $conversations,
+            'user' => $user,
+            'search' => $search ?? '',
             'activeConversation' => $activeConversation,
             'composeUsers' => $composeUsers,
             'composeListings' => $composeListings,
@@ -141,3 +148,4 @@ class MessagesController extends Controller
         ]);
     }
 }
+

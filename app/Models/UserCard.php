@@ -87,4 +87,26 @@ class UserCard extends Model
     {
         return $this->hasOne(MarketplaceListing::class);
     }
+
+    public function getPriceTrendAttribute(): string
+    {
+        $marketValue = (float) ($this->card?->market_value ?? 0);
+        $purchasePrice = (float) ($this->purchase_price ?? 0);
+
+        if ($marketValue <= 0 || $purchasePrice <= 0) {
+            return 'stable';
+        }
+
+        $diff = (($marketValue - $purchasePrice) / $purchasePrice) * 100;
+
+        if ($diff > 10) {
+            return 'rising';
+        }
+
+        if ($diff < -10) {
+            return 'falling';
+        }
+
+        return 'stable';
+    }
 }
