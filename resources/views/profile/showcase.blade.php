@@ -167,4 +167,21 @@
         @endforelse
     </div>
 </section>
+        <form action="{{ route('cards.uploadProof', $card->id) }}" method="POST" enctype="multipart/form-data">
+            @csrf
+
+            <label for="proof" class="block mb-1 font-medium text-gray-700">
+                Upload Proof of Possession
+            </label>
+
+            <input type="file" name="proof" id="proof" accept="image/*" class="border p-2 rounded-md w-full">
+
+            @error('proof')
+                <span class="text-red-500 text-sm">{{ $message }}</span>
+            @enderror
+
+            <button type="submit" class="mt-3 px-4 py-2 bg-[#b5651d] text-white rounded-md hover:bg-[#a0541a]">
+                Upload
+            </button>
+        </form>
 @endsection

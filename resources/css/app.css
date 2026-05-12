@@ -1447,6 +1447,7 @@ body.dashboard-body {
 }
 
 .explorer-artist-footer {
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -4505,3 +4506,4 @@ body.dashboard-body {
     letter-spacing: 0.02em;
     box-shadow: 0 10px 20px rgba(126, 84, 35, 0.24);
 }
+

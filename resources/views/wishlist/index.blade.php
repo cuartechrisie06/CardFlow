@@ -52,10 +52,12 @@
                                     <div class="wishlist-row-actions">
                                         <span class="mini-chip">{{ $priorityLabel($item->priority) }}</span>
                                         <span class="wishlist-match-chip">{{ $matches->isNotEmpty() ? $matches->count().' matches' : 'No match yet' }}</span>
-                                        <form action="{{ route('wishlist.destroy', $item) }}" method="POST">
+                                        <form action="{{ route('wishlist.destroy', $item) }}" method="POST" class="wishlist-form">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="wishlist-remove-button">Remove</button>
+                                            <button type="button" class="wishlist-remove-button" onclick="openDeleteModal('{{ $item->title ?? 'this card' }}', this)">
+                                                Remove
+                                            </button>
                                         </form>
                                     </div>
                                 </div>
@@ -182,5 +184,38 @@
                         </div>
                     </form>
                 </section>
+                <div id="wishlistDeleteModal" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.3); align-items:center; justify-content:center; z-index:9999;">
+    <div style="background:#fff8f3; padding:2rem; border-radius:1rem; max-width:400px; width:90%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
+        <div style="font-size:1.5rem; color:#c75e3e; margin-bottom:0.5rem;">&#x26A0;</div>
+        <h5 style="letter-spacing:1px; font-size:0.8rem; color:#c75e3e; margin-bottom:0.5rem;">CONFIRM REMOVE</h5>
+        <h3 id="wishlistDeleteMessage" style="margin:0.5rem 0; font-weight:500;">Remove this item from your wishlist?</h3>
+        <p style="color:#555; font-size:0.9rem; margin-bottom:1.5rem;">
+            This will permanently remove the card from your wishlist. This action cannot be undone.
+        </p>
+        <button id="cancelWishlistDelete" style="margin-right:1rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; background:#eee;">Cancel</button>
+        <button id="confirmWishlistDelete" style="padding:0.5rem 1rem; border:none; border-radius:0.5rem; background:#c75e3e; color:white;">Yes, remove card</button>
+    </div>
+</div>
+<script>
+let currentWishlistForm;
+
+function openDeleteModal(cardName, button) {
+    currentWishlistForm = button.closest('form'); // save the form
+    document.getElementById('wishlistDeleteMessage').innerText = 
+        `Remove "${cardName}" from your wishlist?`;
+    document.getElementById('wishlistDeleteModal').style.display = 'flex';
+}
+
+// Cancel button
+document.getElementById('cancelWishlistDelete').onclick = function() {
+    document.getElementById('wishlistDeleteModal').style.display = 'none';
+    currentWishlistForm = null;
+};
+
+// Confirm button
+document.getElementById('confirmWishlistDelete').onclick = function() {
+    if(currentWishlistForm) currentWishlistForm.submit(); // submit the form
+};
+</script>
 @endsection
 

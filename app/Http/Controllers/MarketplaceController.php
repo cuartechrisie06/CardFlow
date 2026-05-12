@@ -327,6 +327,7 @@ class MarketplaceController extends Controller
             'listing_price' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'image', 'max:5120'],
+            'proof_image' => ['nullable', 'image', 'max:5120'],
             'status' => ['required', 'in:draft,active'],
         ];
 
@@ -371,6 +372,15 @@ class MarketplaceController extends Controller
 
             $userCard->photo_path = $request->file('photo')->store('user-cards', 'public');
         }
+        if ($request->hasFile('proof_image')) {
+        if ($userCard->proof_image) {
+            Storage::disk('public')->delete($userCard->proof_image);
+        }
+
+        $userCard->proof_image = $request->file('proof_image')->store('proofs', 'public');
+        $userCard->proof_uploaded_at = now();
+        $userCard->proof_verified = false;
+    }
 
         $userCard->forceFill([
             'notes' => $validated['description'] ?? null,
@@ -398,4 +408,7 @@ class MarketplaceController extends Controller
             'trade' => 'Trade',
         ];
     }
+
+    
 }
+

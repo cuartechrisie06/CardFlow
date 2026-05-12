@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Route;
 
 
 
+
+
 Route::middleware('guest')->group(function () {
     Route::view('/', 'auth.login');
     Route::view('/login', 'auth.login')->name('login');
@@ -49,6 +51,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/collection/{userCard}', [CollectionCardController::class, 'update'])->name('collection.update');
     Route::delete('/collection/{userCard}', [CollectionCardController::class, 'destroy'])->name('collection.destroy');
     Route::get('/cards/{id}', [CollectionCardController::class, 'showCard'])->name('cards.show');
+    Route::post('/cards/{card}/upload-proof', [CardController::class, 'uploadProof'])->name('cards.uploadProof');
     Route::get('/marketplace', MarketplaceController::class)->name('marketplace.index');
     Route::get('/marketplace/create', [MarketplaceController::class, 'create'])->name('marketplace.create');
     Route::post('/marketplace', [MarketplaceController::class, 'store'])->name('marketplace.store');

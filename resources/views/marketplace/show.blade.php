@@ -134,6 +134,43 @@
                                     <p>{{ '@'.$owner->username }}</p>
                                 </div>
                             </div>
+                            {{-- Proof of Possession Upload --}}
+                            @php
+                                $proofCard = null;
+
+                                if (isset($userCard)) {
+                                    $proofCard = $userCard;
+                                } elseif (isset($listing) && $listing->userCard) {
+                                    $proofCard = $listing->userCard;
+                                } elseif (isset($marketplaceListing) && $marketplaceListing->userCard) {
+                                    $proofCard = $marketplaceListing->userCard;
+                                }
+                            @endphp
+
+                            <div class="proof-possession mt-4 p-3 border rounded-md bg-gray-50">
+                                <h3 class="font-semibold mb-2">Proof of Possession</h3>
+
+                                @if ($proofCard && $proofCard->proof_image)
+                                    <img 
+                                        src="{{ asset('storage/' . $proofCard->proof_image) }}" 
+                                        alt="Proof Image" 
+                                        class="w-32 h-32 object-cover rounded-md mb-3"
+                                    >
+
+                                    @if ($proofCard->proof_verified)
+                                        <p class="text-green-700 font-semibold">✅ Status: Verified</p>
+                                    @else
+                                        <p class="text-yellow-700 font-semibold">⏳ Status: Pending Verification</p>
+                                    @endif
+
+                                    <p>
+                                        Uploaded at:
+                                        {{ $proofCard->proof_uploaded_at ? $proofCard->proof_uploaded_at->format('M d, Y h:i A') : 'N/A' }}
+                                    </p>
+                                @else
+                                    <p>No proof of possession uploaded.</p>
+                                @endif
+                            </div>
 
                             <div class="seller-trust-meta">
                                 @if ($owner->seller_badge)
@@ -270,6 +307,19 @@
                 });
             });
         </script>
+                @if(isset($card) && $card->proof_image)
+                <div class="proof-section p-3 border rounded-md bg-gray-50 mb-4">
+                    <h3 class="font-semibold mb-2">Proof of Possession</h3>
+                    <img src="{{ asset('storage/' . $card->proof_image) }}" alt="Proof Image" class="w-full rounded-md mb-2">
+                    <p class="text-sm text-gray-500">
+                        Uploaded at: {{ $card->proof_timestamp ?? 'Unknown' }}
+                        @if(isset($card->proof_verified))
+                            - Status: {{ $card->proof_verified ? 'Verified' : 'Pending' }}
+                        @endif
+                    </p>
+                </div>
+            @endif
+            
 @endsection
 
 

@@ -129,6 +129,11 @@
                 <input type="file" name="photo" accept="image/*">
             </label>
 
+            <label class="form-field">
+                <span>Proof of Possession</span>
+                <input type="file" name="proof_image" accept="image/*">
+            </label>
+
             <div class="create-form-actions marketplace-form-actions">
                 <button type="submit" class="dashboard-add-card">
                     {{ $submitLabel }}
