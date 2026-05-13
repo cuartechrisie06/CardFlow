@@ -19,6 +19,7 @@ use App\Http\Controllers\SendMessageController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProofVerificationController;
 
 
 
@@ -52,6 +53,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/collection/{userCard}', [CollectionCardController::class, 'destroy'])->name('collection.destroy');
     Route::get('/cards/{id}', [CollectionCardController::class, 'showCard'])->name('cards.show');
     Route::post('/cards/{card}/upload-proof', [CardController::class, 'uploadProof'])->name('cards.uploadProof');
+    Route::patch('/user-cards/{userCard}/approve-proof', [ProofVerificationController::class, 'approve'])->name('user-cards.approve-proof')->middleware('auth');
     Route::get('/marketplace', MarketplaceController::class)->name('marketplace.index');
     Route::get('/marketplace/create', [MarketplaceController::class, 'create'])->name('marketplace.create');
     Route::post('/marketplace', [MarketplaceController::class, 'store'])->name('marketplace.store');
