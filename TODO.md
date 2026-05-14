@@ -1,0 +1,11 @@
+- [ ] Update `resources/views/explorer/index.blade.php`
+  - [ ] Add “Back to Explorer” button (top-left)
+  - [ ] Add catalog header title/subtitle dynamic for selected idol/group
+  - [ ] Add catalog sub-navigation sort pills (Most Owned / Highest Value / Newest Release)
+  - [ ] Add photocard catalog grid using binder-style `.kpop-photocard-card` structure
+  - [ ] Add navigation logic: clicking Idol/Group cards swaps view from list to catalog (no controller/route logic changes)
+- [ ] Update `resources/css/app.css`
+  - [ ] Add photocard variant card CSS + hover effect
+  - [ ] Add any needed explorer-catalog layout/sort pill styles (reusing existing pill patterns)
+- [ ] Quick check: ensure Blade renders and CSS compiles (no syntax errors)
+

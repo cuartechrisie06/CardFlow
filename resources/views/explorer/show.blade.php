@@ -15,7 +15,7 @@
                     </div>
 
                     <div class="dashboard-actions">
-                        <a href="{{ route('explorer.index', array_filter(['q' => $search ?: null, 'filter' => $filters['active']])) }}" class="dashboard-add-card dashboard-add-card-secondary">Back to explorer</a>
+                        <a href="{{ route('explorer.index') }}" class="dashboard-add-card dashboard-add-card-secondary">Back to explorer</a>
                     </div>
                 </header>
 

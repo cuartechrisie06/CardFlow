@@ -7,6 +7,7 @@ use App\Models\MarketplaceListing;
 use App\Models\SavedView;
 use App\Models\Trade;
 use App\Models\WishlistItem;
+use App\Services\KpopApiService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -17,69 +18,17 @@ use Illuminate\Support\Str;
 
 class ExplorerController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function index(Request $request, KpopApiService $kpop): View
     {
-        $search = trim((string) $request->string('q'));
-        $filter = (string) $request->string('filter', 'by_group');
+        $search = trim((string) $request->get('search', ''));
+        $tab = $request->get('tab', 'idols');
+        $tab = in_array($tab, ['idols', 'groups'], true) ? $tab : 'idols';
 
-        $cardsQuery = $this->filteredCardsQuery($search, $filter);
-        $filteredCards = (clone $cardsQuery)
-            ->withCount([
-                'wishlistItems',
-                'marketplaceListings as active_listings_count' => fn (Builder $query) => $query->activeVisible(),
-                'trades',
-            ])
-            ->get();
-        $catalogs = $this->catalogMetrics($filteredCards);
+        $idols = $tab === 'idols' ? $kpop->getIdols($search) : [];
+        $groups = $tab === 'groups' ? $kpop->getGroups($search) : [];
+        $kpopOk = $kpop->isDatasetAvailable();
 
-        $averageTradeValue = (float) MarketplaceListing::query()
-            ->activeVisible()
-            ->whereHas('card', fn (Builder $query) => $this->applySearchAndFilter($query, $search, $filter))
-            ->join('user_cards', 'user_cards.id', '=', 'marketplace_listings.user_card_id')
-            ->selectRaw('AVG(COALESCE(user_cards.listing_price, user_cards.estimated_value, 0)) as average_value')
-            ->value('average_value');
-
-        $hottestTrend = $catalogs
-            ->sortByDesc(fn (array $catalog) => [$catalog['wishlist_count'], $catalog['listing_count'], $catalog['trade_count']])
-            ->first();
-
-        $featuredCatalogs = $catalogs
-            ->sortByDesc(fn (array $catalog) => [$catalog['wishlist_count'], $catalog['listing_count'], $catalog['average_value']])
-            ->take(3)
-            ->values()
-            ->map(function (array $catalog, int $index) {
-                $styles = ['market-thumb-one', 'market-thumb-two', 'market-thumb-three'];
-
-                return $catalog + [
-                    'style' => $styles[$index % count($styles)],
-                    'blurb' => $this->catalogBlurb($catalog),
-                ];
-            });
-
-        $categoryBars = $this->buildCategoryDemandBars($filteredCards);
-        $quickPicks = $this->buildQuickPicks($filteredCards);
-
-        return view('explorer.index', [
-            'search' => $search,
-            'filters' => [
-                'active' => $filter,
-                'items' => [
-                    'by_group' => 'By Group',
-                    'by_idol' => 'By Idol',
-                    'high_value' => 'High Value',
-                ],
-            ],
-            'metrics' => [
-                'groups_indexed' => $catalogs->count(),
-                'total_cards' => $filteredCards->count(),
-                'average_trade_value' => round($averageTradeValue),
-                'hottest_artist' => $hottestTrend['artist'] ?? 'No data yet',
-            ],
-            'featuredCatalogs' => $featuredCatalogs,
-            'categoryBars' => $categoryBars,
-            'quickPicks' => $quickPicks,
-            'saveViewAction' => route('explorer.saved-views.store'),
-        ]);
+        return view('explorer.index', compact('idols', 'groups', 'search', 'tab', 'kpopOk'));
     }
 
     public function show(Request $request, string $catalog): View
@@ -132,12 +81,12 @@ class ExplorerController extends Controller
             'search' => $search,
             'filters' => [
                 'active' => $filter,
-            'items' => [
-                'by_group' => 'By Group',
-                'by_idol' => 'By Idol',
-                'high_value' => 'High Value',
+                'items' => [
+                    'by_group' => 'By Group',
+                    'by_idol' => 'By Idol',
+                    'high_value' => 'High Value',
+                ],
             ],
-        ],
             'catalog' => $metrics,
             'eras' => $eras,
             'cards' => $cards,

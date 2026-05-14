@@ -19,12 +19,18 @@ class MarketplaceListing extends Model
         'card_id',
         'status',
         'is_visible',
+        'proof_photo',
+        'proof_verified',
+        'proof_status',
+        'proof_score',
     ];
 
     protected function casts(): array
     {
         return [
             'is_visible' => 'boolean',
+            'proof_verified' => 'boolean',
+            'proof_score' => 'integer',
         ];
     }
 

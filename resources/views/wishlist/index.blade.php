@@ -20,7 +20,7 @@
                                 <input type="search" name="q" value="{{ $search }}" placeholder="Search wanted cards...">
                             </label>
                         </form>
-                        <a href="#wishlist-add-form" class="dashboard-add-card">+ Add to Wishlist</a>
+                        <button type="button" id="add-wishlist-btn" class="dashboard-add-card">+ Add to Wishlist</button>
                     </div>
                 </header>
 
@@ -28,7 +28,7 @@
                     <div class="auth-status">{{ session('status') }}</div>
                 @endif
 
-                <section class="wishlist-layout">
+                <section class="wishlist-page-grid">
                     <article class="wishlist-panel">
                         <div class="wishlist-panel-top">
                             <div>
@@ -42,10 +42,9 @@
                             @forelse ($wishlistItems as $item)
                                 @php
                                     $matches = $matchesByWishlist->get($item->id, collect());
-                                    $topMatch = $matches->first();
                                 @endphp
                                 <div class="wishlist-row">
-                                    <div>
+                                    <div class="wishlist-row-copy">
                                         <strong>{{ $item->card->title }}</strong>
                                         <p>{{ strtoupper($item->card->artist) }} • {{ strtoupper($item->card->album ?? 'WISHLIST') }}</p>
                                     </div>
@@ -55,29 +54,20 @@
                                         <form action="{{ route('wishlist.destroy', $item) }}" method="POST" class="wishlist-form">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="button" class="wishlist-remove-button" onclick="openDeleteModal('{{ $item->title ?? 'this card' }}', this)">
+                                            <button type="button" class="wishlist-remove-button" onclick="openDeleteModal('{{ $item->card->title ?? 'this card' }}', this)">
                                                 Remove
                                             </button>
                                         </form>
                                     </div>
                                 </div>
-                                @if ($topMatch)
-                                    @php
-                                        $topListing = $topMatch['listing'];
-                                    @endphp
-                                    <div class="wishlist-row-match-preview">
-                                        <span>{{ $topListing->card->title }}</span>
-                                        <a href="{{ route('marketplace.cards.show', $topListing) }}" class="wishlist-inline-link">View listing from {{ '@'.$topListing->user->username }}</a>
-                                    </div>
-                                @endif
                             @empty
                                 <div class="collection-empty collection-empty-rich">
                                     <div class="collection-empty-icon" aria-hidden="true">⭐</div>
                                     <h3>Your wishlist is empty.</h3>
                                     <p>Add cards you're looking for.</p>
-                                    <a href="#wishlist-add-form" class="dashboard-add-card">
+                                    <button type="button" id="empty-add-wishlist-btn" class="dashboard-add-card">
                                         + Add to Wishlist
-                                    </a>
+                                    </button>
                                 </div>
                             @endforelse
                         </div>
@@ -89,7 +79,7 @@
                                 <p class="mini-label">Active matches</p>
                                 <h2>{{ $activeMatches->isNotEmpty() ? 'Real marketplace matches' : 'No live matches yet' }}</h2>
                             </div>
-                            <span class="mini-chip">{{ $activeMatches->isNotEmpty() ? 'Live matches' : 'Waiting' }}</span>
+                            <span class="mini-chip">{{ $activeMatches->isNotEmpty() ? 'Live matching' : 'Waiting' }}</span>
                         </div>
 
                         @if ($activeMatches->isNotEmpty())
@@ -103,119 +93,169 @@
                                             $ownedCard = $listing->userCard;
                                             $photoUrl = $storagePhotoUrl($ownedCard->photo_path);
                                         @endphp
-                                        <div class="wishlist-match-card">
-                                            <div class="wishlist-match-meta">
-                                                <span class="mini-chip">{{ '@'.$owner->username }}</span>
-                                                <span class="mini-chip">{{ $ownedCard->is_for_sale ? 'For sale' : ($ownedCard->is_for_trade ? 'Open for trade' : 'Public listing') }}</span>
-                                            </div>
-                                            <div class="wishlist-match-thumb card-media-ratio {{ $listedCard->thumbnail_style }}">
-                                                <img
-                                                    src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
-                                                    alt="{{ $listedCard->title }}"
-                                                    class="card-media-image"
-                                                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
-                                                >
-                                            </div>
-                                            <div class="wishlist-match-copy">
+                                        <div class="match-card">
+                                            <img
+                                                src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
+                                                alt="{{ $listedCard->title }}"
+                                                class="match-card-image"
+                                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                            >
+
+                                            <div class="match-card-info">
+                                                <div class="wishlist-match-meta">
+                                                    <span class="mini-chip">{{ '@'.$owner->username }}</span>
+                                                    <span class="mini-chip {{ $ownedCard->is_for_trade ? 'wishlist-trade-badge' : '' }}">{{ $ownedCard->is_for_sale ? 'For sale' : ($ownedCard->is_for_trade ? 'Open for trade' : 'Public listing') }}</span>
+                                                </div>
+
                                                 <strong>{{ $listedCard->title }}</strong>
-                                                <p>{{ $listedCard->artist }} • {{ $listedCard->album ?: 'Standalone release' }}</p>
-                                                <p>{{ $ownedCard->listing_price ? 'PHP '.number_format((float) $ownedCard->listing_price, 0) : ($ownedCard->is_for_trade ? 'Trade listing' : 'Public showcase') }}</p>
+                                                <p class="match-card-subtitle">{{ strtoupper($listedCard->artist) }} • {{ strtoupper($listedCard->album ?: 'Standalone release') }}</p>
+                                                <p class="match-card-price">{{ $ownedCard->listing_price ? 'PHP '.number_format((float) $ownedCard->listing_price, 0) : ($ownedCard->is_for_trade ? 'Trade listing' : 'Public showcase') }}</p>
+
+                                                <a href="{{ route('marketplace.cards.show', $listing) }}" class="wishlist-view-listing-button">View listing</a>
                                             </div>
-                                            <a href="{{ route('marketplace.cards.show', $listing) }}" class="marketplace-link">View listing</a>
                                         </div>
                                     @endforeach
                                 @endforeach
                             </div>
                         @else
-                            <div class="collection-empty">No active matches yet. We’ll surface real marketplace listings here when they appear.</div>
+                            <div class="collection-empty collection-empty-rich">
+                                <div class="collection-empty-icon" aria-hidden="true">🪄</div>
+                                <h3>No live matches yet.</h3>
+                                <p>We’ll surface real marketplace listings here when they appear.</p>
+                                <a href="{{ route('marketplace.index') }}" class="dashboard-add-card">
+                                    Browse Marketplace
+                                </a>
+                            </div>
                         @endif
                     </article>
                 </section>
 
-                <section id="wishlist-add-form" class="dashboard-card wishlist-add-shell">
-                    <div class="card-topline">
-                        <div>
-                            <p class="mini-label">Add wishlist item</p>
-                            <h2>Track a wanted photocard</h2>
+                <div id="wishlist-modal" class="modal-overlay hidden" aria-hidden="true">
+                    <div class="modal-backdrop" data-wishlist-close></div>
+                    <div class="modal-box wishlist-modal-box" role="dialog" aria-modal="true" aria-labelledby="wishlistModalTitle">
+                        <div class="card-topline wishlist-modal-header">
+                            <div>
+                                <p class="mini-label">Add wishlist item</p>
+                                <h2 id="wishlistModalTitle">Track a wanted photocard</h2>
+                            </div>
+                            <span class="mini-chip">Saved to your account</span>
                         </div>
-                        <span class="mini-chip">Saved to your account</span>
+
+                        <form method="POST" action="{{ route('wishlist.store') }}" class="card-create-form wishlist-modal-form">
+                            @csrf
+                            <div class="card-form-grid">
+                                <label class="field-group">
+                                    <span>Artist / Group</span>
+                                    <input type="text" name="artist" value="{{ old('artist') }}" placeholder="Aespa">
+                                    @error('artist') <small class="field-error">{{ $message }}</small> @enderror
+                                </label>
+
+                                <label class="field-group">
+                                    <span>Card Title</span>
+                                    <input type="text" name="title" value="{{ old('title') }}" placeholder="Winter - Broadcast card">
+                                    @error('title') <small class="field-error">{{ $message }}</small> @enderror
+                                </label>
+
+                                <label class="field-group">
+                                    <span>Album</span>
+                                    <input type="text" name="album" value="{{ old('album') }}" placeholder="Armageddon">
+                                    @error('album') <small class="field-error">{{ $message }}</small> @enderror
+                                </label>
+
+                                <label class="field-group">
+                                    <span>Priority</span>
+                                    <select name="priority" class="field-select">
+                                        <option value="high" @selected(old('priority', 'high') === 'high')>High priority</option>
+                                        <option value="medium" @selected(old('priority') === 'medium')>Medium priority</option>
+                                        <option value="low" @selected(old('priority') === 'low')>Low priority</option>
+                                    </select>
+                                    @error('priority') <small class="field-error">{{ $message }}</small> @enderror
+                                </label>
+
+                                <label class="field-group">
+                                    <span>Target Price</span>
+                                    <input type="number" name="target_price" value="{{ old('target_price') }}" min="0" step="0.01" placeholder="1200">
+                                    @error('target_price') <small class="field-error">{{ $message }}</small> @enderror
+                                </label>
+                            </div>
+
+                            <div class="create-form-actions wishlist-modal-actions">
+                                <button type="button" id="wishlist-cancel" class="dashboard-add-card dashboard-add-card-secondary">Cancel</button>
+                                <button type="submit" class="dashboard-add-card">Save to Wishlist</button>
+                            </div>
+                        </form>
                     </div>
+                </div>
 
-                    <form method="POST" action="{{ route('wishlist.store') }}" class="card-create-form">
-                        @csrf
-                        <div class="card-form-grid">
-                            <label class="field-group">
-                                <span>Artist / Group</span>
-                                <input type="text" name="artist" value="{{ old('artist') }}" placeholder="Aespa">
-                                @error('artist') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Card Title</span>
-                                <input type="text" name="title" value="{{ old('title') }}" placeholder="Winter - Broadcast card">
-                                @error('title') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Album</span>
-                                <input type="text" name="album" value="{{ old('album') }}" placeholder="Armageddon">
-                                @error('album') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Priority</span>
-                                <select name="priority" class="field-select">
-                                    <option value="high" @selected(old('priority', 'high') === 'high')>High priority</option>
-                                    <option value="medium" @selected(old('priority') === 'medium')>Medium priority</option>
-                                    <option value="low" @selected(old('priority') === 'low')>Low priority</option>
-                                </select>
-                                @error('priority') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Target Price</span>
-                                <input type="number" name="target_price" value="{{ old('target_price') }}" min="0" step="0.01" placeholder="1200">
-                                @error('target_price') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-                        </div>
-
-                        <div class="create-form-actions">
-                            <button type="submit" class="dashboard-add-card">Save wishlist item</button>
-                        </div>
-                    </form>
-                </section>
                 <div id="wishlistDeleteModal" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.3); align-items:center; justify-content:center; z-index:9999;">
-    <div style="background:#fff8f3; padding:2rem; border-radius:1rem; max-width:400px; width:90%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
-        <div style="font-size:1.5rem; color:#c75e3e; margin-bottom:0.5rem;">&#x26A0;</div>
-        <h5 style="letter-spacing:1px; font-size:0.8rem; color:#c75e3e; margin-bottom:0.5rem;">CONFIRM REMOVE</h5>
-        <h3 id="wishlistDeleteMessage" style="margin:0.5rem 0; font-weight:500;">Remove this item from your wishlist?</h3>
-        <p style="color:#555; font-size:0.9rem; margin-bottom:1.5rem;">
-            This will permanently remove the card from your wishlist. This action cannot be undone.
-        </p>
-        <button id="cancelWishlistDelete" style="margin-right:1rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; background:#eee;">Cancel</button>
-        <button id="confirmWishlistDelete" style="padding:0.5rem 1rem; border:none; border-radius:0.5rem; background:#c75e3e; color:white;">Yes, remove card</button>
-    </div>
-</div>
+                    <div style="background:#fff8f3; padding:2rem; border-radius:1rem; max-width:400px; width:90%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
+                        <div style="font-size:1.5rem; color:#c75e3e; margin-bottom:0.5rem;">&#x26A0;</div>
+                        <h5 style="letter-spacing:1px; font-size:0.8rem; color:#c75e3e; margin-bottom:0.5rem;">CONFIRM REMOVE</h5>
+                        <h3 id="wishlistDeleteMessage" style="margin:0.5rem 0; font-weight:500;">Remove this item from your wishlist?</h3>
+                        <p style="color:#555; font-size:0.9rem; margin-bottom:1.5rem;">
+                            This will permanently remove the card from your wishlist. This action cannot be undone.
+                        </p>
+                        <button id="cancelWishlistDelete" style="margin-right:1rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; background:#eee;">Cancel</button>
+                        <button id="confirmWishlistDelete" style="padding:0.5rem 1rem; border:none; border-radius:0.5rem; background:#c75e3e; color:white;">Yes, remove card</button>
+                    </div>
+                </div>
 <script>
 let currentWishlistForm;
 
 function openDeleteModal(cardName, button) {
-    currentWishlistForm = button.closest('form'); // save the form
-    document.getElementById('wishlistDeleteMessage').innerText = 
+    currentWishlistForm = button.closest('form');
+    document.getElementById('wishlistDeleteMessage').innerText =
         `Remove "${cardName}" from your wishlist?`;
     document.getElementById('wishlistDeleteModal').style.display = 'flex';
 }
 
-// Cancel button
 document.getElementById('cancelWishlistDelete').onclick = function() {
     document.getElementById('wishlistDeleteModal').style.display = 'none';
     currentWishlistForm = null;
 };
 
-// Confirm button
 document.getElementById('confirmWishlistDelete').onclick = function() {
-    if(currentWishlistForm) currentWishlistForm.submit(); // submit the form
+    if (currentWishlistForm) currentWishlistForm.submit();
 };
+
+document.addEventListener('DOMContentLoaded', function () {
+    const wishlistModal = document.getElementById('wishlist-modal');
+    const openButtons = [
+        document.getElementById('add-wishlist-btn'),
+        document.getElementById('empty-add-wishlist-btn'),
+    ].filter(Boolean);
+    const cancelButton = document.getElementById('wishlist-cancel');
+    const closeTargets = document.querySelectorAll('[data-wishlist-close]');
+
+    if (!wishlistModal) {
+        return;
+    }
+
+    openButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            wishlistModal.classList.remove('hidden');
+            wishlistModal.setAttribute('aria-hidden', 'false');
+        });
+    });
+
+    if (cancelButton) {
+        cancelButton.addEventListener('click', function () {
+            wishlistModal.classList.add('hidden');
+            wishlistModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    closeTargets.forEach(function (target) {
+        target.addEventListener('click', function () {
+            wishlistModal.classList.add('hidden');
+            wishlistModal.setAttribute('aria-hidden', 'true');
+        });
+    });
+
+    @if ($errors->has('artist') || $errors->has('title') || $errors->has('album') || $errors->has('priority') || $errors->has('target_price'))
+        wishlistModal.classList.remove('hidden');
+        wishlistModal.setAttribute('aria-hidden', 'false');
+    @endif
+});
 </script>
 @endsection
-

@@ -174,7 +174,7 @@ class MarketplaceController extends Controller
 
             $this->persistListingData($userCard, $validated, $request);
 
-            MarketplaceListing::query()->updateOrCreate(
+            $listing = MarketplaceListing::query()->updateOrCreate(
                 [
                     'user_id' => $request->user()->id,
                     'user_card_id' => $userCard->id,
@@ -185,6 +185,8 @@ class MarketplaceController extends Controller
                     'is_visible' => ($validated['status'] ?? 'draft') === 'active',
                 ]
             );
+
+            $this->persistProofData($listing, $request);
         });
 
         return redirect()
@@ -229,6 +231,8 @@ class MarketplaceController extends Controller
                 'status' => $validated['status'] ?? 'draft',
                 'is_visible' => ($validated['status'] ?? 'draft') === 'active',
             ])->save();
+
+            $this->persistProofData($marketplaceListing, $request);
         });
 
         return redirect()
@@ -327,7 +331,7 @@ class MarketplaceController extends Controller
             'listing_price' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'image', 'max:5120'],
-            'proof_image' => ['nullable', 'image', 'max:5120'],
+            'proof_photo' => ['nullable', 'image', 'max:5120'],
             'status' => ['required', 'in:draft,active'],
         ];
 
@@ -372,16 +376,6 @@ class MarketplaceController extends Controller
 
             $userCard->photo_path = $request->file('photo')->store('user-cards', 'public');
         }
-        if ($request->hasFile('proof_image')) {
-        if ($userCard->proof_image) {
-            Storage::disk('public')->delete($userCard->proof_image);
-        }
-
-        $userCard->proof_image = $request->file('proof_image')->store('proofs', 'public');
-        $userCard->proof_uploaded_at = now();
-        $userCard->proof_verified = false;
-    }
-
         $userCard->forceFill([
             'notes' => $validated['description'] ?? null,
             'is_for_sale' => $isSale,
@@ -390,6 +384,24 @@ class MarketplaceController extends Controller
             'is_public' => $isActive,
             'is_listed' => in_array($status, ['draft', 'active'], true),
             'marketplace_status' => $status,
+        ])->save();
+    }
+
+    private function persistProofData(MarketplaceListing $listing, Request $request): void
+    {
+        if (! $request->hasFile('proof_photo')) {
+            return;
+        }
+
+        if ($listing->proof_photo) {
+            Storage::disk('public')->delete($listing->proof_photo);
+        }
+
+        $listing->forceFill([
+            'proof_photo' => $request->file('proof_photo')->store('proofs', 'public'),
+            'proof_verified' => false,
+            'proof_status' => 'pending',
+            'proof_score' => null,
         ])->save();
     }
 
@@ -411,4 +423,3 @@ class MarketplaceController extends Controller
 
     
 }
-

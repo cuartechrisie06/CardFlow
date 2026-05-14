@@ -8,22 +8,18 @@ use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExplorerController;
 use App\Http\Controllers\MarkConversationReadController;
-use App\Http\Controllers\MessagesController;
 use App\Http\Controllers\MarketplaceCardController;
 use App\Http\Controllers\MarketplaceController;
+use App\Http\Controllers\MessagesController;
 use App\Http\Controllers\OpenMarketplaceConversationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProofVerificationController;
 use App\Http\Controllers\PublicCollectionController;
-use App\Http\Controllers\StartConversationController;
 use App\Http\Controllers\SendMessageController;
+use App\Http\Controllers\StartConversationController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProofVerificationController;
-
-
-
-
 
 Route::middleware('guest')->group(function () {
     Route::view('/', 'auth.login');
@@ -72,7 +68,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/messages/start', [StartConversationController::class, 'store'])->name('messages.start');
     Route::post('/messages', [SendMessageController::class, 'store'])->name('messages.store');
     Route::post('/messages/{conversation}/read', [MarkConversationReadController::class, 'store'])->name('messages.read');
-    Route::get('/explorer', ExplorerController::class)->name('explorer.index');
+    Route::get('/explorer', [ExplorerController::class, 'index'])->name('explorer.index');
     Route::post('/explorer/save-view', [ExplorerController::class, 'storeSavedView'])->name('explorer.saved-views.store');
     Route::get('/explorer/catalogs/{catalog}', [ExplorerController::class, 'show'])->name('explorer.catalogs.show');
     Route::post('/messages/listings/{marketplaceListing}', [OpenMarketplaceConversationController::class, 'store'])->name('messages.listings.store');

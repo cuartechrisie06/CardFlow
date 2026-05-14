@@ -3,169 +3,113 @@
 namespace Tests\Feature;
 
 use App\Models\Card;
-use App\Models\MarketplaceListing;
 use App\Models\SavedView;
 use App\Models\User;
-use App\Models\UserCard;
-use App\Models\WishlistItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ExplorerTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_explorer_index_uses_real_database_metrics(): void
+    protected function setUp(): void
     {
+        parent::setUp();
+        Cache::flush();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function kpopnetSamplePayload(): array
+    {
+        return [
+            'groups' => [
+                [
+                    'id' => 'g-test-1',
+                    'name' => 'aespa',
+                    'debut_date' => '2020-11-17',
+                    'members' => [
+                        ['idol_id' => 'i1', 'current' => true],
+                        ['idol_id' => 'i2', 'current' => true],
+                        ['idol_id' => 'i3', 'current' => true],
+                        ['idol_id' => 'i4', 'current' => true],
+                    ],
+                ],
+            ],
+            'idols' => [
+                [
+                    'id' => 'i-winter',
+                    'name' => 'Winter',
+                    'birth_date' => '2001-01-01',
+                    'debut_date' => '2020-11-17',
+                    'groups' => ['g-test-1'],
+                ],
+            ],
+        ];
+    }
+
+    public function test_explorer_index_loads_idols_from_kpopnet(): void
+    {
+        Http::fake([
+            'https://unpkg.com/kpopnet.json/*' => Http::response($this->kpopnetSamplePayload(), 200),
+        ]);
+
         $viewer = User::factory()->create();
-        $seller = User::factory()->create();
 
-        $cardA = Card::factory()->create([
-            'artist' => 'Aespa',
-            'title' => 'Winter - Armageddon',
-            'album' => 'Armageddon',
-            'market_value' => 1200,
+        $this->actingAs($viewer)
+            ->get(route('explorer.index', ['tab' => 'idols']))
+            ->assertOk()
+            ->assertSeeText('Winter')
+            ->assertSeeText('2001-01-01')
+            ->assertSeeText('aespa')
+            ->assertSeeText('kpopnet');
+    }
+
+    public function test_explorer_groups_tab_loads_groups_from_kpopnet(): void
+    {
+        Http::fake([
+            'https://unpkg.com/kpopnet.json/*' => Http::response($this->kpopnetSamplePayload(), 200),
         ]);
 
-        $cardB = Card::factory()->create([
-            'artist' => 'IVE',
-            'title' => 'Yujin - Switch',
-            'album' => 'Switch',
-            'market_value' => 1800,
+        $viewer = User::factory()->create();
+
+        $this->actingAs($viewer)
+            ->get(route('explorer.index', ['tab' => 'groups']))
+            ->assertOk()
+            ->assertSeeText('aespa')
+            ->assertSeeText('Members')
+            ->assertSeeText('4');
+    }
+
+    public function test_explorer_index_shows_unavailable_when_dataset_empty(): void
+    {
+        Http::fake([
+            'https://unpkg.com/kpopnet.json/*' => Http::response(['groups' => [], 'idols' => []], 200),
         ]);
 
-        $userCard = UserCard::factory()->for($seller)->for($cardA)->listed([
-            'is_public' => true,
-            'is_for_sale' => true,
-            'listing_price' => 1500,
-        ])->create();
-
-        MarketplaceListing::factory()->create([
-            'user_id' => $seller->id,
-            'user_card_id' => $userCard->id,
-            'card_id' => $cardA->id,
-        ]);
-
-        WishlistItem::factory()->for($viewer)->for($cardA)->create();
-        WishlistItem::factory()->for(User::factory()->create())->for($cardA)->create();
-        WishlistItem::factory()->for($viewer)->for($cardB)->create();
-
-        UserCard::factory()->for($seller)->for($cardB)->create();
+        $viewer = User::factory()->create();
 
         $this->actingAs($viewer)
             ->get(route('explorer.index'))
             ->assertOk()
-            ->assertSeeText('2')
-            ->assertSeeText('PHP 1,500')
-            ->assertSeeText('Aespa');
+            ->assertSeeText('K-Pop database is currently unavailable.');
     }
 
-    public function test_explorer_search_filters_real_cards(): void
+    public function test_explorer_index_shows_unavailable_when_fetch_fails(): void
     {
+        Http::fake([
+            'https://unpkg.com/kpopnet.json/*' => Http::response(null, 503),
+        ]);
+
         $viewer = User::factory()->create();
-        $owner = User::factory()->create();
-
-        $matchingCard = Card::factory()->create([
-            'artist' => 'Le Sserafim',
-            'title' => 'Yunjin - Easy',
-            'album' => 'Easy',
-        ]);
-
-        $nonMatchingCard = Card::factory()->create([
-            'artist' => 'BLACKPINK',
-            'title' => 'Jennie - Born Pink',
-            'album' => 'Born Pink',
-        ]);
-
-        UserCard::factory()->for($owner)->for($matchingCard)->create();
-        UserCard::factory()->for($owner)->for($nonMatchingCard)->create();
 
         $this->actingAs($viewer)
-            ->get(route('explorer.index', ['q' => 'Yunjin']))
+            ->get(route('explorer.index'))
             ->assertOk()
-            ->assertSeeText('Le Sserafim')
-            ->assertDontSeeText('BLACKPINK');
-    }
-
-    public function test_explorer_search_can_filter_by_artist(): void
-    {
-        $viewer = User::factory()->create();
-        $owner = User::factory()->create();
-
-        $artistCard = Card::factory()->create([
-            'artist' => 'Aespa',
-            'title' => 'Winter Broadcast',
-            'album' => 'Drama',
-        ]);
-
-        $otherCard = Card::factory()->create([
-            'artist' => 'IVE',
-            'title' => 'Yujin Lucky Draw',
-            'album' => 'Switch',
-        ]);
-
-        UserCard::factory()->for($owner)->for($artistCard)->create();
-        UserCard::factory()->for($owner)->for($otherCard)->create();
-
-        $this->actingAs($viewer)
-            ->get(route('explorer.index', ['q' => 'Aespa']))
-            ->assertOk()
-            ->assertSeeText('Aespa')
-            ->assertDontSeeText('IVE');
-    }
-
-    public function test_explorer_search_can_filter_by_rarity(): void
-    {
-        $viewer = User::factory()->create();
-        $owner = User::factory()->create();
-
-        $rareCard = Card::factory()->create([
-            'artist' => 'Aespa',
-            'title' => 'Karina Rare Pull',
-            'rarity' => 'Rare',
-        ]);
-
-        $commonCard = Card::factory()->create([
-            'artist' => 'IVE',
-            'title' => 'Liz Album Ver',
-            'rarity' => 'Official',
-        ]);
-
-        UserCard::factory()->for($owner)->for($rareCard)->create();
-        UserCard::factory()->for($owner)->for($commonCard)->create();
-
-        $this->actingAs($viewer)
-            ->get(route('explorer.index', ['q' => 'Rare']))
-            ->assertOk()
-            ->assertSeeText('Karina Rare Pull')
-            ->assertDontSeeText('Liz Album Ver');
-    }
-
-    public function test_explorer_search_can_filter_by_album(): void
-    {
-        $viewer = User::factory()->create();
-        $owner = User::factory()->create();
-
-        $albumMatch = Card::factory()->create([
-            'artist' => 'NewJeans',
-            'title' => 'Hanni Broadcast',
-            'album' => 'Supernatural',
-        ]);
-
-        $nonMatch = Card::factory()->create([
-            'artist' => 'Twice',
-            'title' => 'Nayeon Fan Sign',
-            'album' => 'With You-th',
-        ]);
-
-        UserCard::factory()->for($owner)->for($albumMatch)->create();
-        UserCard::factory()->for($owner)->for($nonMatch)->create();
-
-        $this->actingAs($viewer)
-            ->get(route('explorer.index', ['q' => 'Supernatural']))
-            ->assertOk()
-            ->assertSeeText('NewJeans')
-            ->assertDontSeeText('Twice');
+            ->assertSeeText('K-Pop database is currently unavailable.');
     }
 
     public function test_catalog_cards_link_to_real_catalog_detail_page(): void

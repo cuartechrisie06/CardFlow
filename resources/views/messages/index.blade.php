@@ -150,7 +150,7 @@
                             <form class="messages-compose" method="POST" action="{{ route('messages.store') }}" data-message-form>
                                 @csrf
                                 <input type="hidden" name="conversation_id" value="{{ $activeConversation->id }}">
-                                <input type="text" name="body" placeholder="Type your message..." value="{{ $draftMessage }}" data-message-input>
+                                <input type="text" name="body" placeholder="Type your message..." value="" data-message-input>
                                 <button type="submit" aria-label="Send message">Send</button>
                             </form>
                         @else

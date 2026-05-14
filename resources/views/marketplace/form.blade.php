@@ -129,10 +129,37 @@
                 <input type="file" name="photo" accept="image/*">
             </label>
 
-            <label class="form-field">
-                <span>Proof of Possession</span>
-                <input type="file" name="proof_image" accept="image/*">
-            </label>
+            <section class="proof-upload-panel">
+                <div class="proof-upload-copy">
+                    <p class="mini-label">Proof of Possession</p>
+                    <h3>📸 Proof of Possession</h3>
+                    <p>
+                        Hold your photocard next to a paper with your username
+                        <strong>{{ '@'.auth()->user()->username }}</strong> and today's date
+                        <strong>{{ now()->format('Y-m-d') }}</strong>. Take a clear photo in good lighting.
+                    </p>
+                    <p class="proof-upload-note">
+                        ✦ Listings with verified proof get a "Verified Seller" badge.
+                    </p>
+                </div>
+
+                @if ($listing?->proof_photo)
+                    <div class="proof-upload-preview">
+                        <img
+                            src="{{ $storagePhotoUrl($listing->proof_photo) ?: asset('images/placeholder-card.png') }}"
+                            alt="Current proof photo"
+                            class="card-photo-preview"
+                            onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                        >
+                    </div>
+                @endif
+
+                <label class="form-field proof-upload-field">
+                    <span>Upload proof photo</span>
+                    <input type="file" name="proof_photo" accept="image/*">
+                    @error('proof_photo') <small class="field-error">{{ $message }}</small> @enderror
+                </label>
+            </section>
 
             <div class="create-form-actions marketplace-form-actions">
                 <button type="submit" class="dashboard-add-card">

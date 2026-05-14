@@ -28,42 +28,82 @@
                         @csrf
 
                         <div class="card-form-grid">
-                            <label class="field-group">
-                                <span>Artist / Group</span>
-                                <input type="text" name="artist" value="{{ old('artist') }}" placeholder="Le Sserafim">
+                            <div class="form-group">
+                                <label class="form-label" for="artist">Artist / Group</label>
+                                <input id="artist" type="text" name="artist" class="form-input" value="{{ old('artist') }}" placeholder="Le Sserafim">
                                 @error('artist') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
+                            </div>
 
-                            <label class="field-group">
-                                <span>Card Title</span>
-                                <input type="text" name="title" value="{{ old('title') }}" placeholder="Chaewon - Easy">
+                            <div class="form-group">
+                                <label class="form-label" for="title">Card Title</label>
+                                <input id="title" type="text" name="title" class="form-input" value="{{ old('title') }}" placeholder="Chaewon - Easy">
                                 @error('title') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
+                            </div>
 
-                            <label class="field-group">
-                                <span>Album</span>
-                                <input type="text" name="album" value="{{ old('album') }}" placeholder="Easy">
+                            <div class="form-group">
+                                <label class="form-label" for="album">Album</label>
+                                <input id="album" type="text" name="album" class="form-input" value="{{ old('album') }}" placeholder="Easy">
                                 @error('album') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
+                            </div>
 
-                            <label class="field-group">
-                                <span>Edition</span>
-                                <input type="text" name="edition" value="{{ old('edition') }}" placeholder="Broadcast drop">
+                            <div class="form-group">
+                                <label class="form-label" for="edition">Edition</label>
+                                <input id="edition" type="text" name="edition" class="form-input" value="{{ old('edition') }}" placeholder="Broadcast drop">
                                 @error('edition') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
+                            </div>
 
-                            <label class="field-group">
-                                <span>Rarity</span>
-                                <select name="rarity" class="field-select">
+                            <div class="form-group">
+                                <label class="form-label" for="rarity">Rarity</label>
+                                <select id="rarity" name="rarity" class="form-input">
                                     @foreach (['Mint', 'Rare', 'Hot', 'Official', 'Wishlist'] as $rarity)
                                         <option value="{{ $rarity }}" @selected(old('rarity', 'Mint') === $rarity)>{{ $rarity }}</option>
                                     @endforeach
                                 </select>
                                 @error('rarity') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
+                            </div>
 
-                            <label class="field-group">
-                                <span>Photocard Photo</span>
+                            <div class="form-group">
+                                <label class="form-label" for="condition">Condition</label>
+                                <select id="condition" name="condition" class="form-input">
+                                    @foreach (['Mint', 'Near mint', 'Good'] as $condition)
+                                        <option value="{{ $condition }}" @selected(old('condition', 'Mint') === $condition)>{{ $condition }}</option>
+                                    @endforeach
+                                </select>
+                                @error('condition') <small class="field-error">{{ $message }}</small> @enderror
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="market_value">Market Value</label>
+                                <input id="market_value" type="number" name="market_value" class="form-input" value="{{ old('market_value') }}" min="0" step="0.01" placeholder="1450">
+                                @error('market_value') <small class="field-error">{{ $message }}</small> @enderror
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="purchase_price">Purchase Price</label>
+                                <input id="purchase_price" type="number" name="purchase_price" class="form-input" value="{{ old('purchase_price') }}" min="0" step="0.01" placeholder="1200">
+                                @error('purchase_price') <small class="field-error">{{ $message }}</small> @enderror
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="estimated_value">Estimated Value</label>
+                                <input id="estimated_value" type="number" name="estimated_value" class="form-input" value="{{ old('estimated_value') }}" min="0" step="0.01" placeholder="1450">
+                                @error('estimated_value') <small class="field-error">{{ $message }}</small> @enderror
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="acquired_at">Acquired Date</label>
+                                <input id="acquired_at" type="date" name="acquired_at" class="form-input" value="{{ old('acquired_at') }}">
+                                @error('acquired_at') <small class="field-error">{{ $message }}</small> @enderror
+                            </div>
+
+                            <div class="form-group form-group-wide">
+                                <label class="form-label" for="notes">Notes</label>
+                                <textarea id="notes" name="notes" rows="4" class="form-input" placeholder="Condition details, source, trade notes...">{{ old('notes') }}</textarea>
+                                @error('notes') <small class="field-error">{{ $message }}</small> @enderror
+                            </div>
+
+                            <div class="form-group form-group-wide">
+                                <label class="form-label" for="photo">Photocard Photo</label>
                                 <div class="card-photo-preview-shell">
                                     <img
                                         src="{{ asset('images/placeholder-card.png') }}"
@@ -73,50 +113,10 @@
                                         onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
                                     >
                                 </div>
-                                <input type="file" name="photo" class="field-file" accept="image/*" capture="environment">
+                                <input id="photo" type="file" name="photo" class="form-input form-input-file" accept="image/*" capture="environment">
                                 <small class="field-help">Upload a photo from your device or take one with your camera.</small>
                                 @error('photo') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Market Value</span>
-                                <input type="number" name="market_value" value="{{ old('market_value') }}" min="0" step="0.01" placeholder="1450">
-                                @error('market_value') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Estimated Value</span>
-                                <input type="number" name="estimated_value" value="{{ old('estimated_value') }}" min="0" step="0.01" placeholder="1450">
-                                @error('estimated_value') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Purchase Price</span>
-                                <input type="number" name="purchase_price" value="{{ old('purchase_price') }}" min="0" step="0.01" placeholder="1200">
-                                @error('purchase_price') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Condition</span>
-                                <select name="condition" class="field-select">
-                                    @foreach (['Mint', 'Near mint', 'Good'] as $condition)
-                                        <option value="{{ $condition }}" @selected(old('condition', 'Mint') === $condition)>{{ $condition }}</option>
-                                    @endforeach
-                                </select>
-                                @error('condition') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group">
-                                <span>Acquired At</span>
-                                <input type="date" name="acquired_at" value="{{ old('acquired_at') }}">
-                                @error('acquired_at') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
-
-                            <label class="field-group field-group-wide">
-                                <span>Notes</span>
-                                <textarea name="notes" rows="4" placeholder="Condition details, source, trade notes...">{{ old('notes') }}</textarea>
-                                @error('notes') <small class="field-error">{{ $message }}</small> @enderror
-                            </label>
+                            </div>
                         </div>
 
                         <label class="remember-row create-checkbox">
@@ -134,11 +134,11 @@
                             <span>Mark this card as available for sale</span>
                         </label>
 
-                        <label class="field-group">
-                            <span>Listing Price</span>
-                            <input type="number" name="listing_price" value="{{ old('listing_price') }}" min="0" step="0.01" placeholder="1500">
+                        <div class="form-group">
+                            <label class="form-label" for="listing_price">Listing Price</label>
+                            <input id="listing_price" type="number" name="listing_price" class="form-input" value="{{ old('listing_price') }}" min="0" step="0.01" placeholder="1500">
                             @error('listing_price') <small class="field-error">{{ $message }}</small> @enderror
-                        </label>
+                        </div>
 
                         <div class="create-form-actions">
                             <a href="{{ route('collection.index') }}" class="dashboard-add-card dashboard-add-card-secondary">Cancel</a>
