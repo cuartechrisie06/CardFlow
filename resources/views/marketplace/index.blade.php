@@ -239,8 +239,8 @@
                             @empty
                                 <div class="collection-empty collection-empty-rich">
                                     <div class="collection-empty-icon" aria-hidden="true">🛍️</div>
-                                    <h3>No listings yet.</h3>
-                                    <p>Be the first to list a card.</p>
+                                    <h3>No active listings yet.</h3>
+                                    <p>List a card from your collection to make it searchable for buyers and wishlist matches.</p>
                                     <a href="{{ route('marketplace.create') }}" class="dashboard-add-card">
                                         + Create Listing
                                     </a>
@@ -271,4 +271,3 @@
                     </section>
                 </section>
 @endsection
-

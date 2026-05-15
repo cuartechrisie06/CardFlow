@@ -6,78 +6,78 @@
 
 @section('content')
 <main class="cardflow-shell">
-    <section class="auth-panel auth-panel--full" aria-label="Create account"><div class="auth-card">
-        <h2 class="text-2xl font-bold mb-4">Create account</h2>
-        <p class="mb-6 text-gray-600">Join Cardflow and start your collection journey.</p>
+    <section class="auth-panel auth-panel--full" aria-label="Create account">
+        <div class="auth-card auth-card--register">
+            <p class="auth-kicker">Create Account</p>
+            <h2>Start your trading hub</h2>
+            <p class="auth-copy">Join CardFlow and start organizing your photocard collection in one place.</p>
 
-        <form method="POST" action="{{ route('register.store') }}">
-            @csrf
+            @if ($errors->register->any())
+                <div class="auth-status auth-status--error">
+                    Please fix the highlighted fields and try again.
+                </div>
+            @endif
 
-            <!-- Name -->
-            <div class="mb-4">
-                <label for="name" class="block text-sm font-medium">Name</label>
-                <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus
-                       class="w-full border rounded px-3 py-2">
-                @error('name')
-                    <span class="text-red-500 text-sm">{{ $message }}</span>
-                @enderror
-            </div>
+            <form class="auth-form" method="POST" action="{{ route('register.store') }}">
+                @csrf
 
-            <!-- Username -->
-            <div class="mb-4">
-                <label for="username" class="block text-sm font-medium">Username</label>
-                <input id="username" type="text" name="username" value="{{ old('username') }}" required
-                       class="w-full border rounded px-3 py-2">
-                @error('username')
-                    <span class="text-red-500 text-sm">{{ $message }}</span>
-                @enderror
-            </div>
+                <div class="field-two-up">
+                    <label class="field-group" for="name">
+                        <span>Full Name</span>
+                        <input id="name" type="text" name="name" value="{{ old('name') }}" placeholder="Chrissie Lee" autocomplete="name" required autofocus>
+                        @error('name', 'register')
+                            <small class="field-error">{{ $message }}</small>
+                        @enderror
+                    </label>
 
-            <!-- Email -->
-            <div class="mb-4">
-                <label for="email" class="block text-sm font-medium">Email address</label>
-                <input id="email" type="email" name="email" value="{{ old('email') }}" required
-                       class="w-full border rounded px-3 py-2">
-                @error('email')
-                    <span class="text-red-500 text-sm">{{ $message }}</span>
-                @enderror
-            </div>
+                    <label class="field-group" for="username">
+                        <span>Username</span>
+                        <input id="username" type="text" name="username" value="{{ old('username') }}" placeholder="cardkeeper" autocomplete="username" required>
+                        @error('username', 'register')
+                            <small class="field-error">{{ $message }}</small>
+                        @enderror
+                    </label>
+                </div>
 
-            <!-- Password -->
-            <div class="mb-4">
-                <label for="password" class="block text-sm font-medium">Password</label>
-                <input id="password" type="password" name="password" required
-                       class="w-full border rounded px-3 py-2">
-                @error('password')
-                    <span class="text-red-500 text-sm">{{ $message }}</span>
-                @enderror
-            </div>
-
-            <!-- Confirm Password -->
-            <div class="mb-4">
-                <label for="password_confirmation" class="block text-sm font-medium">Confirm Password</label>
-                <input id="password_confirmation" type="password" name="password_confirmation" required
-                       class="w-full border rounded px-3 py-2">
-            </div>
-
-            <!-- Terms -->
-            <div class="mb-4 flex items-center">
-                <input id="terms" type="checkbox" name="terms" required class="mr-2">
-                <label for="terms" class="text-sm">
-                    I accept the community guidelines and privacy terms
+                <label class="field-group" for="email">
+                    <span>Email Address</span>
+                    <input id="email" type="email" name="email" value="{{ old('email') }}" placeholder="hello@yourbrand.com" autocomplete="email" required>
+                    @error('email', 'register')
+                        <small class="field-error">{{ $message }}</small>
+                    @enderror
                 </label>
-                @error('terms')
-                    <span class="text-red-500 text-sm">{{ $message }}</span>
-                @enderror
-            </div>
 
-            <!-- Submit -->
-            <button type="submit"
-                    class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">
-                Create account
-            </button>
-        </form>
-    </div>    </section>
+                <div class="field-two-up">
+                    <label class="field-group" for="password">
+                        <span>Password</span>
+                        <input id="password" type="password" name="password" placeholder="Create a password" autocomplete="new-password" required>
+                        @error('password', 'register')
+                            <small class="field-error">{{ $message }}</small>
+                        @enderror
+                    </label>
+
+                    <label class="field-group" for="password_confirmation">
+                        <span>Confirm</span>
+                        <input id="password_confirmation" type="password" name="password_confirmation" placeholder="Confirm password" autocomplete="new-password" required>
+                    </label>
+                </div>
+
+                <div class="form-meta form-meta-stack">
+                    <label class="remember-row" for="terms">
+                        <input id="terms" type="checkbox" name="terms" @checked(old('terms')) required>
+                        <span>I agree to the community guidelines and privacy terms.</span>
+                    </label>
+                    @error('terms', 'register')
+                        <small class="field-error">{{ $message }}</small>
+                    @enderror
+                    <span class="meta-chip">Starter profile</span>
+                </div>
+
+                <button type="submit" class="submit-button">Create account</button>
+            </form>
+
+            <p class="signup-copy">Already have an account? <a href="{{ route('login') }}" class="field-link auth-inline-link">Sign in</a></p>
+        </div>
+    </section>
 </main>
 @endsection
-

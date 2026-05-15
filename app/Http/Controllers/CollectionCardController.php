@@ -6,7 +6,9 @@ use App\Models\Card;
 use App\Models\Conversation;
 use App\Models\MarketplaceListing;
 use App\Models\Trade;
+use App\Models\UserOnboarding;
 use App\Models\UserCard;
+use App\Services\WishlistMatchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +19,10 @@ use Illuminate\Support\Facades\Storage;
 
 class CollectionCardController extends Controller
 {
+    public function __construct(private WishlistMatchService $wishlistMatchService)
+    {
+    }
+
     public function create(): View
     {
         return view('collection.create');
@@ -29,9 +35,8 @@ class CollectionCardController extends Controller
         $userCard->load('card');
 
         $card = $userCard->card;
-        $imagePath = $userCard->photo_path && Storage::disk('public')->exists($userCard->photo_path)
-            ? asset('storage/' . $userCard->photo_path)
-            : asset('storage/cards/' . ($card->thumbnail_style ?? 'default.jpg'));
+        $imagePath = $this->publicStorageUrl($userCard->photo_path)
+            ?: asset('images/placeholder-card.png');
 
         $rarityLabel = match ($card->rarity) {
             'R' => 'Rare',
@@ -46,7 +51,7 @@ class CollectionCardController extends Controller
         $valueDelta = $estimatedValue - $purchasePrice;
         $isPositiveDelta = $valueDelta >= 0;
 
-        return view('cards.show', compact(
+        return view('collection.show', compact(
             'userCard',
             'card',
             'imagePath',
@@ -74,7 +79,7 @@ class CollectionCardController extends Controller
             'estimated_value' => ['nullable', 'numeric', 'min:0'],
             'purchase_price' => ['nullable', 'numeric', 'min:0'],
             'acquired_at' => ['nullable', 'date'],
-            'photo' => ['nullable', 'image', 'max:5120'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'is_public' => ['nullable', 'boolean'],
             'is_for_trade' => ['nullable', 'boolean'],
             'is_for_sale' => ['nullable', 'boolean'],
@@ -119,13 +124,20 @@ class CollectionCardController extends Controller
                 'is_public' => $request->boolean('is_public'),
                 'is_for_trade' => $request->boolean('is_for_trade'),
                 'is_for_sale' => $request->boolean('is_for_sale'),
-                'listing_price' => $validated['listing_price'] ?? null,
+                'listing_price' => $request->boolean('is_for_sale')
+                    ? ($validated['listing_price'] ?? $validated['estimated_value'] ?? $validated['market_value'])
+                    : null,
                 'photo_path' => $photoPath,
                 'notes' => $validated['notes'] ?? null,
             ]);
 
             $this->syncMarketplaceListing($userCard);
         });
+
+        UserOnboarding::query()->updateOrCreate(
+            ['user_id' => $request->user()->id],
+            ['added_first_card' => true],
+        );
 
         return redirect()->route('collection.index')
             ->with('status', 'Card added to your collection.');
@@ -157,7 +169,7 @@ class CollectionCardController extends Controller
             'estimated_value' => ['nullable', 'numeric', 'min:0'],
             'purchase_price' => ['nullable', 'numeric', 'min:0'],
             'acquired_at' => ['nullable', 'date'],
-            'photo' => ['nullable', 'image', 'max:5120'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'is_public' => ['nullable', 'boolean'],
             'is_for_trade' => ['nullable', 'boolean'],
             'is_for_sale' => ['nullable', 'boolean'],
@@ -236,7 +248,7 @@ class CollectionCardController extends Controller
             return;
         }
 
-        MarketplaceListing::query()->updateOrCreate(
+        $listing = MarketplaceListing::query()->updateOrCreate(
             ['user_card_id' => $userCard->id],
             [
                 'user_id' => $userCard->user_id,
@@ -245,6 +257,8 @@ class CollectionCardController extends Controller
                 'is_visible' => true,
             ],
         );
+
+        $this->wishlistMatchService->markMatchesForListing($listing);
     }
 public function destroy(\App\Models\UserCard $userCard)
 {
@@ -296,5 +310,46 @@ public function destroy(\App\Models\UserCard $userCard)
         ->route('collection.index')
         ->with('status', 'Card deleted successfully.');
 }
+
+    public function markAsTraded(UserCard $userCard): RedirectResponse
+    {
+        $this->authorize('update', $userCard);
+
+        DB::transaction(function () use ($userCard) {
+            $userCard->marketplaceListing()?->forceFill([
+                'status' => 'sold',
+                'is_visible' => false,
+            ])->save();
+
+            $userCard->forceFill([
+                'is_public' => false,
+                'is_for_trade' => false,
+                'is_for_sale' => false,
+                'is_listed' => false,
+                'marketplace_status' => 'sold',
+            ])->save();
+        });
+
+        return redirect()
+            ->route('collection.show', $userCard)
+            ->with('status', 'Card marked as traded.');
+    }
+
+    private function publicStorageUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $normalizedPath = str_replace('\\', '/', $path);
+        $normalizedPath = preg_replace('#^.*storage/app/public/#', '', $normalizedPath) ?: $normalizedPath;
+        $normalizedPath = preg_replace('#^.*public/storage/#', '', $normalizedPath) ?: $normalizedPath;
+        $normalizedPath = preg_replace('#^/?storage/#', '', $normalizedPath) ?: $normalizedPath;
+        $normalizedPath = ltrim($normalizedPath, '/');
+
+        return Storage::disk('public')->exists($normalizedPath)
+            ? Storage::url($normalizedPath)
+            : null;
+    }
     
 }

@@ -70,6 +70,38 @@
                     </section>
                 @endif
 
+                @if (! $onboarding->isComplete())
+                    <section class="dashboard-card onboarding-card">
+                        <div class="card-topline">
+                            <div>
+                                <p class="mini-label">Start here</p>
+                                <h2>Make CardFlow useful in three steps</h2>
+                            </div>
+                            <span class="mini-chip">Setup checklist</span>
+                        </div>
+
+                        <div class="onboarding-steps">
+                            <a href="{{ route('collection.create') }}" class="onboarding-step {{ $onboarding->added_first_card ? 'is-complete' : '' }}">
+                                <span>{{ $onboarding->added_first_card ? 'Done' : '1' }}</span>
+                                <strong>Add your first photocard</strong>
+                                <p>Unlock collection value, stats, and future listings.</p>
+                            </a>
+
+                            <a href="{{ route('wishlist.index') }}" class="onboarding-step {{ $onboarding->added_wishlist_item ? 'is-complete' : '' }}">
+                                <span>{{ $onboarding->added_wishlist_item ? 'Done' : '2' }}</span>
+                                <strong>Add one wishlist item</strong>
+                                <p>Tell CardFlow which artist, album, or card you are searching for.</p>
+                            </a>
+
+                            <a href="{{ route('marketplace.index') }}" class="onboarding-step {{ $onboarding->browsed_marketplace ? 'is-complete' : '' }}">
+                                <span>{{ $onboarding->browsed_marketplace ? 'Done' : '3' }}</span>
+                                <strong>Browse marketplace matches</strong>
+                                <p>Find active listings and start trade conversations with context.</p>
+                            </a>
+                        </div>
+                    </section>
+                @endif
+
                 <section class="stats-grid" aria-label="Collection stats">
                     <article class="stat-card">
                         <span class="stat-label">Total cards</span>
@@ -254,4 +286,3 @@
                     </div>
                 </section>
 @endsection
-

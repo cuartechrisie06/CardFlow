@@ -56,8 +56,12 @@ class MessageSent implements ShouldBroadcastNow
                 'id' => $message->id,
                 'body' => $message->body,
                 'message_type' => $message->message_type,
+                'attachment_path' => $message->attachment_path,
+                'attachment_type' => $message->attachment_type,
+                'attachment_name' => $message->attachment_name,
                 'sender_id' => $message->sender_id,
                 'receiver_id' => $message->receiver_id,
+                'read_at' => $message->read_at?->toIso8601String(),
                 'created_at' => $message->created_at?->toIso8601String(),
             ],
             'sender' => [
@@ -82,7 +86,7 @@ class MessageSent implements ShouldBroadcastNow
                     'username' => $message->conversation->userTwo->username,
                 ],
             ],
-            'preview' => $message->body ?: 'Shared media',
+            'preview' => $message->body ?: ($message->attachment_name ?: 'Shared media'),
             'unread_counts' => $this->unreadCounts,
         ];
     }

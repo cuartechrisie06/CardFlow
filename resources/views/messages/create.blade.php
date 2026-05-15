@@ -36,7 +36,7 @@
 
                 @if ($users->isEmpty())
                     <div class="empty-state">
-                        No other users are available to message yet.
+                        No collectors are available yet. Browse Explorer or Marketplace first, then start a message from a listing.
                     </div>
                 @else
                     <form method="POST" action="{{ route('messages.start') }}" class="message-create-form">
@@ -75,4 +75,3 @@
                 @endif
             </section>
 @endsection
-

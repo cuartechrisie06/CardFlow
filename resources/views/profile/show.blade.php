@@ -18,7 +18,7 @@
                 ></div>
             @else
                 <div class="profile-avatar profile-avatar-fallback" aria-hidden="true">
-                    {{ $profileUser->initials }}
+                    @initials($profileUser->name)
                 </div>
             @endif
 

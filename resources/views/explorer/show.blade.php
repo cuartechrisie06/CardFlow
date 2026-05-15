@@ -7,11 +7,19 @@
 @endsection
 
 @section('content')
-<header class="dashboard-header marketplace-header">
+                <header class="dashboard-header marketplace-header">
                     <div>
                         <p class="dashboard-kicker">Catalog detail</p>
                         <h1>{{ $catalog['artist'] }}</h1>
                         <p class="dashboard-intro">Live catalog detail built from existing cards, wishlists, and marketplace listings.</p>
+                        @if (! empty($catalog['agency']) || ! empty($catalog['debut_date']))
+                            <p class="dashboard-intro">
+                                {{ $catalog['agency'] ?: 'Independent catalog' }}
+                                @if (! empty($catalog['debut_date']))
+                                    • Debut {{ $catalog['debut_date'] }}
+                                @endif
+                            </p>
+                        @endif
                     </div>
 
                     <div class="dashboard-actions">
@@ -40,6 +48,16 @@
                         <div class="stat-value">{{ $formatMoney($catalog['average_value']) }}</div>
                         <div class="stat-note">{{ $catalog['marketplace_listings'] }} active listings</div>
                     </article>
+                    <article class="stat-card">
+                        <span class="stat-label">Variants</span>
+                        <div class="stat-value">{{ $catalog['variant_count'] }}</div>
+                        <div class="stat-note">{{ $catalog['alias_count'] }} aliases tracked</div>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-label">Owned</span>
+                        <div class="stat-value">{{ number_format($catalog['community_owned_count']) }}</div>
+                        <div class="stat-note">community copies logged</div>
+                    </article>
                 </section>
 
                 <section class="explorer-bottom-grid">
@@ -61,6 +79,14 @@
                                 <strong>{{ $catalog['marketplace_listings'] }}</strong>
                             </div>
                         </div>
+
+                        @if (! empty($catalog['aliases']))
+                            <div class="catalog-era-list">
+                                @foreach ($catalog['aliases'] as $alias)
+                                    <span class="collection-pill">{{ $alias }}</span>
+                                @endforeach
+                            </div>
+                        @endif
 
                         <div class="catalog-era-list">
                             @foreach ($eras as $era)
@@ -105,6 +131,7 @@
                                     ->value('photo_path');
 
                                 $photoUrl = $storagePhotoUrl($photoPath);
+                                $primaryVariant = $card->variants->first();
                             @endphp
 
                             <article class="collection-item-card">
@@ -131,7 +158,7 @@
 
                                     <div class="collection-meta-row">
                                         <span class="collection-pill">{{ $card->wishlist_items_count }} wishlists</span>
-                                        <strong>{{ $formatMoney($card->market_value) }}</strong>
+                                        <strong>{{ $formatMoney($primaryVariant?->average_trade_value ?? $card->market_value) }}</strong>
                                     </div>
                                 </div>
                             </article>
@@ -143,5 +170,4 @@
                     {{ $cards->links() }}
                 </section>
 @endsection
-
 

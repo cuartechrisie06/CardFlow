@@ -50,6 +50,37 @@ class WishlistMarketplaceMatchTest extends TestCase
             ->assertSee(route('marketplace.cards.show', $listing), false);
     }
 
+    public function test_publishing_matching_listing_marks_wishlist_item_as_matched(): void
+    {
+        $viewer = User::factory()->create();
+        $seller = User::factory()->create();
+        $card = Card::factory()->create([
+            'artist' => 'Aespa',
+            'title' => 'Winter - Broadcast Card',
+            'album' => 'Armageddon',
+            'rarity' => 'Rare',
+        ]);
+
+        $wishlistItem = WishlistItem::factory()->for($viewer)->for($card)->create([
+            'matched_at' => null,
+        ]);
+
+        $userCard = UserCard::factory()->for($seller)->for($card)->create();
+
+        $this->actingAs($seller)->post(route('marketplace.store'), [
+            'user_card_id' => $userCard->id,
+            'title' => 'Winter - Broadcast Card',
+            'artist' => 'Aespa',
+            'rarity' => 'Rare',
+            'type' => 'sale',
+            'listing_price' => 1800,
+            'description' => 'Fresh listing for a wishlist match.',
+            'status' => 'active',
+        ])->assertRedirect(route('marketplace.index', ['filter' => 'my_listings']));
+
+        $this->assertNotNull($wishlistItem->refresh()->matched_at);
+    }
+
     public function test_unlisted_cards_do_not_appear_as_matches(): void
     {
         $viewer = User::factory()->create();
@@ -87,7 +118,7 @@ class WishlistMarketplaceMatchTest extends TestCase
             'is_public' => true,
         ])->create();
 
-        MarketplaceListing::factory()->create([
+        $listing = MarketplaceListing::factory()->create([
             'user_id' => $viewer->id,
             'user_card_id' => $userCard->id,
             'card_id' => $card->id,
@@ -98,7 +129,8 @@ class WishlistMarketplaceMatchTest extends TestCase
         $this->actingAs($viewer)
             ->get(route('wishlist.index'))
             ->assertOk()
-            ->assertDontSeeText('@collector_self');
+            ->assertSeeText('No live matches yet')
+            ->assertDontSee(route('marketplace.cards.show', $listing), false);
     }
 
     public function test_fake_sample_cards_do_not_appear(): void
@@ -138,6 +170,7 @@ class WishlistMarketplaceMatchTest extends TestCase
         $this->actingAs($viewer)
             ->get(route('wishlist.index'))
             ->assertOk()
-            ->assertSeeText('No active matches yet. We’ll surface real marketplace listings here when they appear.');
+            ->assertSeeText('No live matches yet')
+            ->assertSeeText('You’ll see matches here when another collector lists a similar artist, album, title, or edition.');
     }
 }

@@ -28,10 +28,6 @@
         @endphp
 
         @if ($layoutMode === 'shellless')
-            @if (session('status'))
-                <div class="auth-status">{{ session('status') }}</div>
-            @endif
-
             @if ($errors->any())
                 <div class="auth-errors">
                     <ul>
@@ -61,10 +57,6 @@
                         @endif
                     @endauth
 
-                    @if (session('status'))
-                        <div class="auth-status">{{ session('status') }}</div>
-                    @endif
-
                     @if ($errors->any())
                         <div class="auth-errors">
                             <ul>
@@ -78,6 +70,22 @@
                     @yield('content')
                 </section>
             </main>
+        @endif
+
+        @if (session('status'))
+            <div class="toast-notification" id="toast-success">
+                ✓ {{ session('status') }}
+            </div>
+            <script>
+                setTimeout(() => {
+                    const toast = document.getElementById('toast-success');
+                    if (toast) {
+                        toast.style.opacity = '0';
+                        toast.style.transition = 'opacity 0.5s';
+                        setTimeout(() => toast.remove(), 500);
+                    }
+                }, 3000);
+            </script>
         @endif
 
         @stack('modals')

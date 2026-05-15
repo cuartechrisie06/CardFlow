@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Card;
 use App\Models\MarketplaceListing;
+use App\Models\UserOnboarding;
 use App\Models\UserCard;
+use App\Services\WishlistMatchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,9 +17,18 @@ use Illuminate\Validation\ValidationException;
 
 class MarketplaceController extends Controller
 {
+    public function __construct(private WishlistMatchService $wishlistMatchService)
+    {
+    }
+
     public function __invoke(Request $request): View
     {
         $user = $request->user();
+        UserOnboarding::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['browsed_marketplace' => true],
+        );
+
         $search = trim((string) $request->string('q'));
         $filter = (string) $request->string('filter', 'all');
         $artist = trim((string) $request->string('artist'));
@@ -31,8 +42,7 @@ class MarketplaceController extends Controller
             ->when($filter === 'my_listings', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             }, function ($query) use ($user) {
-                $query->activeVisible()
-                    ->where('user_id', '!=', $user->id);
+                $query->activeVisible();
             })
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($nested) use ($search) {
@@ -100,10 +110,14 @@ class MarketplaceController extends Controller
             ->where('user_id', '!=', $user->id)
             ->activeVisible();
 
+        $myActiveListingsBase = MarketplaceListing::query()
+            ->where('user_id', $user->id)
+            ->activeVisible();
+
         $marketMetrics = [
-            'open_listings' => (clone $publicListingsBase)->count(),
-            'open_trades' => (clone $publicListingsBase)->whereHas('userCard', fn ($query) => $query->where('is_for_trade', true))->count(),
-            'sale_offers' => (clone $publicListingsBase)->whereHas('userCard', fn ($query) => $query->where('is_for_sale', true))->count(),
+            'open_listings' => (clone $myActiveListingsBase)->count(),
+            'open_trades' => (clone $myActiveListingsBase)->whereHas('userCard', fn ($query) => $query->where('is_for_trade', true))->count(),
+            'sale_offers' => (clone $myActiveListingsBase)->whereHas('userCard', fn ($query) => $query->where('is_for_sale', true))->count(),
             'quick_actions' => (int) DB::table('users')
                 ->join('marketplace_listings', 'users.id', '=', 'marketplace_listings.user_id')
                 ->where('users.id', '!=', $user->id)
@@ -149,11 +163,12 @@ class MarketplaceController extends Controller
             ->with('card')
             ->latest()
             ->get();
+        $selectedUserCard = $userCards->firstWhere('id', (int) $request->query('user_card_id'));
 
         return view('marketplace.create', [
             'listing' => null,
             'userCards' => $userCards,
-            'selectedUserCard' => null,
+            'selectedUserCard' => $selectedUserCard,
             'formAction' => route('marketplace.store'),
             'formMethod' => 'POST',
             'submitLabel' => 'Save listing',
@@ -187,6 +202,7 @@ class MarketplaceController extends Controller
             );
 
             $this->persistProofData($listing, $request);
+            $this->wishlistMatchService->markMatchesForListing($listing);
         });
 
         return redirect()
@@ -233,6 +249,7 @@ class MarketplaceController extends Controller
             ])->save();
 
             $this->persistProofData($marketplaceListing, $request);
+            $this->wishlistMatchService->markMatchesForListing($marketplaceListing);
         });
 
         return redirect()
@@ -252,6 +269,8 @@ class MarketplaceController extends Controller
                     'is_public' => false,
                     'is_listed' => false,
                     'marketplace_status' => 'sold',
+                    'is_for_trade' => false,
+                    'is_for_sale' => false,
                 ])->save();
             }
 
@@ -330,8 +349,8 @@ class MarketplaceController extends Controller
             'type' => ['required', 'in:sale,trade'],
             'listing_price' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'photo' => ['nullable', 'image', 'max:5120'],
-            'proof_photo' => ['nullable', 'image', 'max:5120'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'proof_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'status' => ['required', 'in:draft,active'],
         ];
 
@@ -362,6 +381,7 @@ class MarketplaceController extends Controller
         $isSale = $validated['type'] === 'sale';
         $isTrade = $validated['type'] === 'trade';
         $isActive = $status === 'active';
+        $suggestedPrice = $userCard->estimated_value ?? $card->market_value ?? null;
 
         $card->forceFill([
             'title' => $validated['title'],
@@ -380,7 +400,7 @@ class MarketplaceController extends Controller
             'notes' => $validated['description'] ?? null,
             'is_for_sale' => $isSale,
             'is_for_trade' => $isTrade,
-            'listing_price' => $isSale ? $validated['listing_price'] : null,
+            'listing_price' => $isSale ? ($validated['listing_price'] ?? $suggestedPrice) : null,
             'is_public' => $isActive,
             'is_listed' => in_array($status, ['draft', 'active'], true),
             'marketplace_status' => $status,
@@ -408,8 +428,8 @@ class MarketplaceController extends Controller
     private function statusOptions(): array
     {
         return [
+            'active' => 'Active',
             'draft' => 'Draft',
-            'active' => 'Publish',
         ];
     }
 

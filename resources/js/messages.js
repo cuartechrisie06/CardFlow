@@ -27,6 +27,11 @@ export function initRealtimeMessages() {
     const threadBody = app.querySelector('[data-thread-body]');
     const form = app.querySelector('[data-message-form]');
     const input = app.querySelector('[data-message-input]');
+    const attachmentInput = app.querySelector('#message-attachment');
+    const attachmentPreview = app.querySelector('#attachment-preview');
+    const previewContent = app.querySelector('#preview-content');
+    const lightbox = app.querySelector('#lightbox');
+    const lightboxImage = app.querySelector('#lightbox-img');
     const typingIndicator = app.querySelector('[data-typing-indicator]');
     const onlineBadge = app.querySelector('[data-online-status]');
     const composeOverlay = app.querySelector('[data-compose-overlay]');
@@ -40,6 +45,7 @@ export function initRealtimeMessages() {
     let activeConversationId = Number(app.dataset.activeConversationId || 0);
     let presenceChannel = null;
     let typingTimeout = null;
+    let previewObjectUrl = null;
 
     const inboxChannel = echo
         ? echo.private(`users.${currentUserId}.inbox`)
@@ -108,10 +114,44 @@ export function initRealtimeMessages() {
         const article = document.createElement('article');
         article.className = `messages-bubble messages-bubble-${Number(message.sender_id) === currentUserId ? 'me' : 'them'}`;
         article.dataset.messageId = message.id;
-        article.innerHTML = `<p>${escapeHtml(message.body || 'Shared media')}</p><span>${formatTime(message.created_at)}</span>`;
+        const bodyHtml = message.body ? `<p>${escapeHtml(message.body)}</p>` : '';
+        const attachmentHtml = renderAttachmentHtml(message);
+        const isMine = Number(message.sender_id) === currentUserId;
+        const statusText = isMine ? (message.read_at ? 'Read' : 'Sent') : 'Received';
+        article.innerHTML = `${bodyHtml}${attachmentHtml}<div class="message-meta"><span class="message-time">${formatTime(message.created_at)}</span><span class="message-status">${statusText}</span></div>`;
 
         threadBody.appendChild(article);
         threadBody.scrollTop = threadBody.scrollHeight;
+    }
+
+    function renderAttachmentHtml(message) {
+        if (!message?.attachment_path) {
+            return '';
+        }
+
+        const attachmentUrl = `${window.location.origin}/storage/message-attachments/${encodeURIComponent(message.attachment_path)}`;
+        const altText = escapeHtml(message.attachment_name || 'Attached media');
+
+        if (message.attachment_type === 'video') {
+            return `
+                <div class="message-attachment-display">
+                    <video class="message-video" controls>
+                        <source src="${attachmentUrl}">
+                    </video>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="message-attachment-display">
+                <img
+                    src="${attachmentUrl}"
+                    alt="${altText}"
+                    class="message-img"
+                    onclick="openLightbox(this.src)"
+                >
+            </div>
+        `;
     }
 
     function upsertConversationPreview(event) {
@@ -216,23 +256,21 @@ export function initRealtimeMessages() {
     form?.addEventListener('submit', async (event) => {
         event.preventDefault();
 
-        if (!activeConversationId || !input || input.value.trim() === '') {
+        if (!activeConversationId || (!input || input.value.trim() === '') && !(attachmentInput?.files?.length > 0)) {
             return;
         }
 
         const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const formData = new FormData(form);
+        formData.set('conversation_id', String(activeConversationId));
 
         const response = await fetch(sendUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': token ?? '',
             },
-            body: JSON.stringify({
-                conversation_id: activeConversationId,
-                body: input.value.trim(),
-            }),
+            body: formData,
         });
 
         const result = await response.json().catch(() => ({}));
@@ -249,8 +287,13 @@ export function initRealtimeMessages() {
         if (response.ok) {
             input.value = '';
             typingIndicator && (typingIndicator.hidden = true);
+            removeAttachment();
         }
     });
+
+    if (attachmentInput) {
+        attachmentInput.addEventListener('change', () => handleAttachment(attachmentInput));
+    }
 
     app.querySelectorAll('[data-compose-open]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -348,6 +391,101 @@ export function initRealtimeMessages() {
 
         inboxChannel?.stopListening('.message.sent');
     });
+
+    window.handleAttachment = handleAttachment;
+    window.removeAttachment = removeAttachment;
+    window.openLightbox = openLightbox;
+    window.closeLightbox = closeLightbox;
+
+    function handleAttachment(inputEl) {
+        if (!attachmentPreview || !previewContent || !inputEl?.files?.length) {
+            return;
+        }
+
+        const file = inputEl.files[0];
+
+        if (previewObjectUrl) {
+            URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = null;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File too large. Max 10MB.');
+            inputEl.value = '';
+            removeAttachment();
+
+            return;
+        }
+
+        const isVideo = file.type.startsWith('video/');
+        const isImage = file.type.startsWith('image/');
+
+        if (!isVideo && !isImage) {
+            alert('Please choose an image or video file.');
+            inputEl.value = '';
+            removeAttachment();
+
+            return;
+        }
+
+        previewObjectUrl = URL.createObjectURL(file);
+
+        previewContent.innerHTML = `
+            <div class="attachment-preview-card">
+                ${
+                    isImage
+                        ? `<img src="${previewObjectUrl}" alt="${escapeHtml(file.name)}" class="message-attachment-preview-media">`
+                        : `<video src="${previewObjectUrl}" class="message-attachment-preview-media" controls playsinline preload="metadata"></video>`
+                }
+                <div class="attachment-preview-meta">
+                    <strong>${escapeHtml(file.name)}</strong>
+                    <span>${isVideo ? 'Video preview' : 'Image preview'}</span>
+                </div>
+            </div>
+        `;
+
+        attachmentPreview.classList.remove('hidden');
+        attachmentPreview.hidden = false;
+        attachmentPreview.style.display = 'flex';
+    }
+
+    function removeAttachment() {
+        if (attachmentInput) {
+            attachmentInput.value = '';
+        }
+
+        if (attachmentPreview) {
+            attachmentPreview.classList.add('hidden');
+        }
+
+        if (previewContent) {
+            previewContent.innerHTML = '';
+        }
+
+        if (previewObjectUrl) {
+            URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = null;
+        }
+    }
+
+    function openLightbox(src) {
+        if (!lightbox || !lightboxImage) {
+            return;
+        }
+
+        lightboxImage.src = src;
+        lightbox.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        if (!lightbox) {
+            return;
+        }
+
+        lightbox.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
 }
 
 function escapeHtml(value) {

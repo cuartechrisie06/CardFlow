@@ -3,58 +3,38 @@
 namespace Tests\Feature;
 
 use App\Models\Card;
+use App\Models\KpopGroup;
+use App\Models\KpopIdol;
 use App\Models\SavedView;
 use App\Models\User;
+use Database\Seeders\KpopIdolSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ExplorerTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
+    public function test_explorer_index_loads_idols_from_local_database(): void
     {
-        parent::setUp();
-        Cache::flush();
-    }
+        KpopIdol::query()->create([
+            'stage_name' => 'Winter',
+            'full_name' => 'Kim Min-jeong',
+            'korean_name' => '윈터',
+            'group_name' => 'aespa',
+            'debut_date' => '2020-11-17',
+            'birth_date' => '2001-01-01',
+            'company' => 'SM Entertainment',
+            'country' => 'Korea',
+            'gender' => 'Female',
+        ]);
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function kpopnetSamplePayload(): array
-    {
-        return [
-            'groups' => [
-                [
-                    'id' => 'g-test-1',
-                    'name' => 'aespa',
-                    'debut_date' => '2020-11-17',
-                    'members' => [
-                        ['idol_id' => 'i1', 'current' => true],
-                        ['idol_id' => 'i2', 'current' => true],
-                        ['idol_id' => 'i3', 'current' => true],
-                        ['idol_id' => 'i4', 'current' => true],
-                    ],
-                ],
-            ],
-            'idols' => [
-                [
-                    'id' => 'i-winter',
-                    'name' => 'Winter',
-                    'birth_date' => '2001-01-01',
-                    'debut_date' => '2020-11-17',
-                    'groups' => ['g-test-1'],
-                ],
-            ],
-        ];
-    }
-
-    public function test_explorer_index_loads_idols_from_kpopnet(): void
-    {
-        Http::fake([
-            'https://unpkg.com/kpopnet.json/*' => Http::response($this->kpopnetSamplePayload(), 200),
+        KpopGroup::query()->create([
+            'name' => 'aespa',
+            'debut_date' => '2020-11-17',
+            'company' => 'SM Entertainment',
+            'member_count' => 4,
+            'gender' => 'Female',
         ]);
 
         $viewer = User::factory()->create();
@@ -63,15 +43,18 @@ class ExplorerTest extends TestCase
             ->get(route('explorer.index', ['tab' => 'idols']))
             ->assertOk()
             ->assertSeeText('Winter')
-            ->assertSeeText('2001-01-01')
-            ->assertSeeText('aespa')
-            ->assertSeeText('kpopnet');
+            ->assertSeeText('Kim Min-jeong')
+            ->assertSeeText('aespa');
     }
 
-    public function test_explorer_groups_tab_loads_groups_from_kpopnet(): void
+    public function test_explorer_groups_tab_loads_groups_from_local_database(): void
     {
-        Http::fake([
-            'https://unpkg.com/kpopnet.json/*' => Http::response($this->kpopnetSamplePayload(), 200),
+        KpopGroup::query()->create([
+            'name' => 'aespa',
+            'debut_date' => '2020-11-17',
+            'company' => 'SM Entertainment',
+            'member_count' => 4,
+            'gender' => 'Female',
         ]);
 
         $viewer = User::factory()->create();
@@ -80,36 +63,18 @@ class ExplorerTest extends TestCase
             ->get(route('explorer.index', ['tab' => 'groups']))
             ->assertOk()
             ->assertSeeText('aespa')
-            ->assertSeeText('Members')
+            ->assertSeeText('SM Entertainment')
             ->assertSeeText('4');
     }
 
-    public function test_explorer_index_shows_unavailable_when_dataset_empty(): void
+    public function test_explorer_index_shows_local_empty_state_when_no_results(): void
     {
-        Http::fake([
-            'https://unpkg.com/kpopnet.json/*' => Http::response(['groups' => [], 'idols' => []], 200),
-        ]);
-
         $viewer = User::factory()->create();
 
         $this->actingAs($viewer)
             ->get(route('explorer.index'))
             ->assertOk()
-            ->assertSeeText('K-Pop database is currently unavailable.');
-    }
-
-    public function test_explorer_index_shows_unavailable_when_fetch_fails(): void
-    {
-        Http::fake([
-            'https://unpkg.com/kpopnet.json/*' => Http::response(null, 503),
-        ]);
-
-        $viewer = User::factory()->create();
-
-        $this->actingAs($viewer)
-            ->get(route('explorer.index'))
-            ->assertOk()
-            ->assertSeeText('K-Pop database is currently unavailable.');
+            ->assertSeeText('No idols found.');
     }
 
     public function test_catalog_cards_link_to_real_catalog_detail_page(): void
@@ -147,5 +112,18 @@ class ExplorerTest extends TestCase
         ]);
 
         $this->assertSame('high_value', SavedView::query()->firstOrFail()->filters['filter']);
+    }
+
+    public function test_kpop_idol_seeder_imports_rows_from_csv(): void
+    {
+        $this->seed(KpopIdolSeeder::class);
+
+        $this->assertDatabaseHas('kpop_idols', [
+            'stage_name' => '2Soul',
+            'group_name' => "7 O'clock",
+        ]);
+        $this->assertDatabaseHas('kpop_groups', [
+            'name' => "7 O'clock",
+        ]);
     }
 }

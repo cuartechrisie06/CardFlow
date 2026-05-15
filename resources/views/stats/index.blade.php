@@ -3,14 +3,18 @@
 @section('title', 'CardFlow | Stats')
 @section('body_class', 'dashboard-body')
 
-@push('head')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-@endpush
-
 @section('topbar')
 @endsection
 
 @section('content')
+@php
+    $rarityChartRows = collect($rarityChartData);
+    $artistChartRows = collect($artistChartData);
+    $rarityTotal = max((int) $rarityChartRows->sum('total'), 1);
+    $artistMax = max((int) $artistChartRows->max('total'), 1);
+    $rarityColors = ['#8B4513', '#c8956c', '#e8c9a0', '#f5e6d8', '#6f4526', '#d8b391'];
+    $rarityOffset = 0;
+@endphp
 <header class="dashboard-header marketplace-header">
                     <div>
                         <p class="dashboard-kicker">Collection Stats</p>
@@ -37,7 +41,40 @@
                             </div>
 
                             <div class="stats-chart-canvas-wrap">
-                                <canvas id="rarityBreakdownChart" aria-label="Collection by rarity chart" role="img"></canvas>
+                                @if ($rarityChartRows->isNotEmpty())
+                                    <div class="stats-donut-chart" role="img" aria-label="Collection by rarity chart">
+                                        <svg viewBox="0 0 42 42" class="stats-donut-svg" aria-hidden="true">
+                                            <circle class="stats-donut-track" cx="21" cy="21" r="15.915"></circle>
+                                            @foreach ($rarityChartRows as $index => $row)
+                                                @php
+                                                    $segment = ((int) $row['total'] / $rarityTotal) * 100;
+                                                    $color = $rarityColors[$index % count($rarityColors)];
+                                                @endphp
+                                                <circle
+                                                    class="stats-donut-segment"
+                                                    cx="21"
+                                                    cy="21"
+                                                    r="15.915"
+                                                    stroke="{{ $color }}"
+                                                    stroke-dasharray="{{ $segment }} {{ 100 - $segment }}"
+                                                    stroke-dashoffset="{{ -$rarityOffset }}"
+                                                ></circle>
+                                                @php $rarityOffset += $segment; @endphp
+                                            @endforeach
+                                        </svg>
+                                        <div class="stats-donut-total">
+                                            <strong>{{ $rarityChartRows->sum('total') }}</strong>
+                                            <span>cards</span>
+                                        </div>
+                                    </div>
+                                    <div class="stats-chart-legend">
+                                        @foreach ($rarityChartRows as $index => $row)
+                                            <span><i style="background: {{ $rarityColors[$index % count($rarityColors)] }}"></i>{{ $row['label'] }} ({{ $row['total'] }})</span>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="collection-empty">No rarity data yet.</div>
+                                @endif
                             </div>
                         </article>
 
@@ -50,7 +87,21 @@
                             </div>
 
                             <div class="stats-chart-canvas-wrap">
-                                <canvas id="artistBreakdownChart" aria-label="Cards by artist chart" role="img"></canvas>
+                                @if ($artistChartRows->isNotEmpty())
+                                    <div class="stats-bar-chart" role="img" aria-label="Cards by artist chart">
+                                        @foreach ($artistChartRows as $row)
+                                            <div class="stats-bar-chart-row">
+                                                <span>{{ $row['label'] }}</span>
+                                                <div class="stats-bar-chart-track">
+                                                    <i style="width: {{ max(10, ((int) $row['total'] / $artistMax) * 100) }}%"></i>
+                                                </div>
+                                                <strong>{{ $row['total'] }}</strong>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="collection-empty">No artist data yet.</div>
+                                @endif
                             </div>
                         </article>
                     </section>
@@ -59,7 +110,7 @@
                         <article class="stat-card">
                             <span class="stat-label">Total value</span>
                             <div class="stat-value">{{ $formatMoney($metrics['total_value']) }}</div>
-                            <div class="stat-note">estimated collection value</div>
+                            <div class="stat-note">Sum of your estimated card values.</div>
                         </article>
                         <article class="stat-card">
                             <span class="stat-label">Completion rate</span>
@@ -67,17 +118,17 @@
                             <div class="progress-line">
                                 <i style="width: {{ max(8, $metrics['completion_rate']) }}%"></i>
                             </div>
-                            <div class="stat-note">{{ $metrics['trade_total'] }} total trades tracked</div>
+                            <div class="stat-note">Completed trades divided by {{ $metrics['trade_total'] }} total tracked trades.</div>
                         </article>
                         <article class="stat-card">
                             <span class="stat-label">Successful trades</span>
                             <div class="stat-value">{{ $metrics['successful_trades'] }}</div>
-                            <div class="stat-note">completed this week</div>
+                            <div class="stat-note">Trades marked completed during the current week.</div>
                         </article>
                         <article class="stat-card">
                             <span class="stat-label">Avg. trade score</span>
                             <div class="stat-value">{{ number_format($metrics['average_trade_score'], 2) }}</div>
-                            <div class="stat-note">derived from trade outcomes</div>
+                            <div class="stat-note">A weighted score derived from your trade outcomes.</div>
                         </article>
                     </section>
 
@@ -226,7 +277,7 @@
                 @endif
 
                             <div class="stats-highlight-card stats-highlight-dark">
-                                <span class="summary-label">Next milestone</span>
+                                <span class="summary-label">Completion Rate</span>
                                 <strong>{{ $quickExports['completion_rate'] }}%</strong>
                                 <p>{{ $quickExports['listed_cards'] }} listed cards across {{ $quickExports['portfolio_cards'] }} total cards.</p>
                             </div>
@@ -234,118 +285,3 @@
                     </section>
                 </section>
 @endsection
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    if (typeof Chart === 'undefined') {
-        return;
-    }
-
-    const rarityData = @json($rarityChartData);
-    const artistData = @json($artistChartData);
-    const sharedFont = "'DM Sans', sans-serif";
-    const sharedTextColor = '#6f5748';
-    const rarityColors = ['#8B4513', '#c8956c', '#e8c9a0', '#f5e6d8', '#6f4526', '#d8b391'];
-
-    const rarityCanvas = document.getElementById('rarityBreakdownChart');
-    if (rarityCanvas && rarityData.length > 0) {
-        new Chart(rarityCanvas, {
-            type: 'doughnut',
-            data: {
-                labels: rarityData.map(item => item.label),
-                datasets: [{
-                    label: 'Collection by Rarity',
-                    data: rarityData.map(item => item.total),
-                    backgroundColor: rarityColors.slice(0, rarityData.length),
-                    borderColor: '#f8f1ea',
-                    borderWidth: 4,
-                    hoverOffset: 8,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '62%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: sharedTextColor,
-                            font: { family: sharedFont, size: 12 },
-                            usePointStyle: true,
-                            padding: 18,
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: '#3f3028',
-                        titleFont: { family: sharedFont },
-                        bodyFont: { family: sharedFont },
-                    }
-                }
-            }
-        });
-    }
-
-    const artistCanvas = document.getElementById('artistBreakdownChart');
-    if (artistCanvas && artistData.length > 0) {
-        const context = artistCanvas.getContext('2d');
-        const gradient = context.createLinearGradient(0, 0, 0, 280);
-        gradient.addColorStop(0, '#c8956c');
-        gradient.addColorStop(1, '#6f4526');
-
-        new Chart(artistCanvas, {
-            type: 'bar',
-            data: {
-                labels: artistData.map(item => item.label),
-                datasets: [{
-                    label: 'Cards by Artist',
-                    data: artistData.map(item => item.total),
-                    backgroundColor: gradient,
-                    borderRadius: 10,
-                    borderSkipped: false,
-                    maxBarThickness: 44,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        ticks: {
-                            color: sharedTextColor,
-                            font: { family: sharedFont, size: 12 },
-                        },
-                        grid: {
-                            display: false,
-                        }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0,
-                            color: sharedTextColor,
-                            font: { family: sharedFont, size: 12 },
-                        },
-                        grid: {
-                            color: 'rgba(139, 107, 85, 0.12)',
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false,
-                    },
-                    tooltip: {
-                        backgroundColor: '#3f3028',
-                        titleFont: { family: sharedFont },
-                        bodyFont: { family: sharedFont },
-                    }
-                }
-            }
-        });
-    }
-});
-</script>
-@endpush
-

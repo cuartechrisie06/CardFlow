@@ -3,6 +3,35 @@ import { initRealtimeMessages } from './messages';
 
 const authCard = document.querySelector('[data-auth-card]');
 const accountMenus = Array.from(document.querySelectorAll('[data-account-menu]'));
+const fileInputs = Array.from(document.querySelectorAll('[data-file-input]'));
+
+window.previewAvatar = (input) => {
+    const previewSelector = input.dataset.previewTarget;
+    const initialsSelector = input.dataset.previewInitials;
+    const preview = previewSelector ? document.querySelector(previewSelector) : null;
+    const initials = initialsSelector ? document.querySelector(initialsSelector) : null;
+    const file = input.files?.[0];
+
+    if (!file || !preview) {
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        if (preview instanceof HTMLImageElement) {
+            preview.src = event.target?.result || '';
+            preview.hidden = false;
+            preview.style.display = 'block';
+        } else {
+            preview.style.backgroundImage = `url('${event.target?.result}')`;
+        }
+
+        if (initials) {
+            initials.hidden = true;
+        }
+    };
+    reader.readAsDataURL(file);
+};
 
 if (authCard) {
     const triggers = Array.from(authCard.querySelectorAll('[data-auth-trigger]'));
@@ -24,7 +53,10 @@ if (authCard) {
     };
 
     triggers.forEach((trigger) => {
-        trigger.addEventListener('click', () => setMode(trigger.dataset.authTrigger));
+        trigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            setMode(trigger.dataset.authTrigger);
+        });
     });
 
     links.forEach((link) => {
@@ -34,6 +66,53 @@ if (authCard) {
         });
     });
 }
+
+fileInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+        const wrapper = input.closest('.profile-upload-control');
+        const fileName = wrapper?.querySelector('[data-file-name]') || document.getElementById('avatar-filename-label');
+        const previewSelector = input.dataset.previewTarget;
+        const preview = previewSelector ? document.querySelector(previewSelector) : null;
+        const initialsSelector = input.dataset.previewInitials;
+        const initials = initialsSelector ? document.querySelector(initialsSelector) : null;
+        const file = input.files?.[0];
+
+        if (!fileName) {
+            return;
+        }
+
+        fileName.textContent = file?.name || 'No image selected';
+        fileName.style.color = file ? '#3d2b1f' : '';
+
+        if (file && preview) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (preview instanceof HTMLImageElement) {
+                    preview.src = event.target?.result || '';
+                    preview.hidden = false;
+                    preview.style.display = 'block';
+                } else {
+                    preview.style.backgroundImage = `url('${event.target?.result}')`;
+                }
+
+                if (initials) {
+                    initials.style.display = 'none';
+                }
+
+                const removeBtn = document.getElementById('remove-avatar-btn');
+                if (removeBtn) {
+                    removeBtn.style.display = 'none';
+                }
+
+                const removeInput = document.getElementById('remove-avatar-input');
+                if (removeInput) {
+                    removeInput.value = '0';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+});
 
 if (accountMenus.length > 0) {
     const closeMenu = (menu) => {
@@ -137,5 +216,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
-

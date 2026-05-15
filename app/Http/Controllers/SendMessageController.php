@@ -18,8 +18,17 @@ class SendMessageController extends Controller
     {
         $validated = $request->validate([
             'conversation_id' => ['required', 'integer', 'exists:conversations,id'],
-            'body' => ['required', 'string', 'max:2000'],
+            'body' => ['nullable', 'string', 'max:2000'],
+            'attachment' => ['nullable', 'file', 'mimes:jpeg,png,webp,gif,mp4,mov', 'max:10240'],
         ]);
+
+        if (blank($validated['body'] ?? null) && ! $request->hasFile('attachment')) {
+            return back()
+                ->withErrors([
+                    'body' => 'Please enter a message or attach a file.',
+                ])
+                ->withInput();
+        }
 
         Log::info('messages.send.hit', [
             'conversation_id' => $validated['conversation_id'],
@@ -37,13 +46,29 @@ class SendMessageController extends Controller
         $receiver = $conversation->otherParticipant($user);
         abort_unless($receiver, 403);
 
-        $message = DB::transaction(function () use ($conversation, $user, $receiver, $validated) {
+        $attachmentPath = null;
+        $attachmentType = null;
+        $attachmentName = null;
+
+        if ($request->hasFile('attachment') && $request->file('attachment')->isValid()) {
+            $file = $request->file('attachment');
+            $attachmentType = str_starts_with((string) $file->getMimeType(), 'video/') ? 'video' : 'image';
+            $attachmentName = $file->getClientOriginalName();
+            $filename = time().'_'.$user->id.'.'.$file->getClientOriginalExtension();
+            $file->storeAs('message-attachments', $filename, 'public');
+            $attachmentPath = $filename;
+        }
+
+        $message = DB::transaction(function () use ($conversation, $user, $receiver, $validated, $attachmentPath, $attachmentType, $attachmentName) {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_id' => $user->id,
                 'receiver_id' => $receiver->id,
-                'body' => $validated['body'],
-                'message_type' => 'text',
+                'body' => trim($validated['body'] ?? ''),
+                'message_type' => $attachmentType ?? 'text',
+                'attachment_path' => $attachmentPath,
+                'attachment_type' => $attachmentType,
+                'attachment_name' => $attachmentName,
             ]);
 
             $conversation->touch();

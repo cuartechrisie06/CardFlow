@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Artist;
 use App\Models\Card;
+use App\Models\CardVariant;
 use App\Models\MarketplaceListing;
 use App\Models\SavedView;
 use App\Models\Trade;
 use App\Models\WishlistItem;
-use App\Services\KpopApiService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -18,56 +19,87 @@ use Illuminate\Support\Str;
 
 class ExplorerController extends Controller
 {
-    public function index(Request $request, KpopApiService $kpop): View
+    public function index(Request $request): View
     {
         $search = trim((string) $request->get('search', ''));
         $tab = $request->get('tab', 'idols');
         $tab = in_array($tab, ['idols', 'groups'], true) ? $tab : 'idols';
 
-        $idols = $tab === 'idols' ? $kpop->getIdols($search) : [];
-        $groups = $tab === 'groups' ? $kpop->getGroups($search) : [];
-        $kpopOk = $kpop->isDatasetAvailable();
+        $results = $tab === 'groups'
+            ? \App\Models\KpopGroup::query()
+                ->when($search !== '', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))
+                ->orderBy('name')
+                ->paginate(24)
+                ->withQueryString()
+            : \App\Models\KpopIdol::query()
+                ->when($search !== '', fn (Builder $query) => $query->where(function (Builder $nested) use ($search) {
+                    $nested->where('stage_name', 'like', "%{$search}%")
+                        ->orWhere('full_name', 'like', "%{$search}%")
+                        ->orWhere('korean_name', 'like', "%{$search}%")
+                        ->orWhere('group_name', 'like', "%{$search}%")
+                        ->orWhere('company', 'like', "%{$search}%")
+                        ->orWhere('country', 'like', "%{$search}%");
+                }))
+                ->orderBy('stage_name')
+                ->paginate(24)
+                ->withQueryString();
 
-        return view('explorer.index', compact('idols', 'groups', 'search', 'tab', 'kpopOk'));
+        return view('explorer.index', compact('results', 'search', 'tab'));
     }
 
     public function show(Request $request, string $catalog): View
     {
         $search = trim((string) $request->string('q'));
         $filter = (string) $request->string('filter', 'by_group');
-        $artist = $this->resolveArtistFromSlug($catalog);
+        $artistRecord = $this->resolveArtistRecordFromSlug($catalog);
+        $artist = $artistRecord?->name ?? $this->resolveArtistFromSlug($catalog);
 
         abort_if($artist === null, 404);
 
-        $cardsQuery = $this->filteredCardsQuery($search, $filter)->where('artist', $artist);
+        $cardsQuery = $this->catalogCardsQuery($artist, $artistRecord, $search, $filter);
 
         $cards = (clone $cardsQuery)
             ->withCount([
                 'wishlistItems',
                 'marketplaceListings as active_listings_count' => fn (Builder $query) => $query->activeVisible(),
             ])
+            ->with(['variants' => fn (Builder $query) => $query->orderByDesc('community_owned_count')->orderByDesc('average_trade_value')])
             ->orderBy('album')
             ->orderBy('title')
             ->paginate(12)
             ->withQueryString();
 
+        $variantStatsQuery = CardVariant::query()
+            ->whereHas('card', fn (Builder $query) => $this->constrainCatalogCards($query, $artist, $artistRecord));
+
+        $averageTradeValue = (float) $variantStatsQuery->avg('average_trade_value');
+        $averageListingValue = (float) MarketplaceListing::query()
+            ->activeVisible()
+            ->whereHas('card', fn (Builder $query) => $this->constrainCatalogCards($query, $artist, $artistRecord))
+            ->join('user_cards', 'user_cards.id', '=', 'marketplace_listings.user_card_id')
+            ->selectRaw('AVG(COALESCE(user_cards.listing_price, user_cards.estimated_value, 0)) as average_value')
+            ->value('average_value');
+
         $metrics = [
             'artist' => $artist,
+            'agency' => $artistRecord?->agency,
+            'debut_date' => $artistRecord?->debut_date?->format('Y-m-d'),
+            'aliases' => array_values(array_filter((array) ($artistRecord?->aliases ?? []))),
+            'alias_count' => count((array) ($artistRecord?->aliases ?? [])),
             'idol_count' => (clone $cardsQuery)->select('title')->distinct()->count('title'),
             'era_count' => (clone $cardsQuery)->select(DB::raw("COALESCE(NULLIF(album, ''), COALESCE(NULLIF(edition, ''), 'Standalone')) as era"))->distinct()->count(),
             'card_count' => (clone $cardsQuery)->count(),
-            'average_value' => round((float) MarketplaceListing::query()
-                ->activeVisible()
-                ->whereHas('card', fn (Builder $query) => $query->where('artist', $artist))
-                ->join('user_cards', 'user_cards.id', '=', 'marketplace_listings.user_card_id')
-                ->selectRaw('AVG(COALESCE(user_cards.listing_price, user_cards.estimated_value, 0)) as average_value')
-                ->value('average_value')),
+            'variant_count' => (clone $variantStatsQuery)->count(),
+            'community_owned_count' => (int) (clone $variantStatsQuery)->sum('community_owned_count'),
+            'community_listed_count' => (int) (clone $variantStatsQuery)->sum('community_listed_count'),
+            'average_trade_value' => round($averageTradeValue > 0 ? $averageTradeValue : $averageListingValue),
+            'average_value' => round($averageTradeValue > 0 ? $averageTradeValue : $averageListingValue),
             'active_wishlists' => WishlistItem::query()
-                ->whereHas('card', fn (Builder $query) => $query->where('artist', $artist))
+                ->whereHas('card', fn (Builder $query) => $this->constrainCatalogCards($query, $artist, $artistRecord))
                 ->count(),
             'marketplace_listings' => MarketplaceListing::query()
                 ->activeVisible()
-                ->whereHas('card', fn (Builder $query) => $query->where('artist', $artist))
+                ->whereHas('card', fn (Builder $query) => $this->constrainCatalogCards($query, $artist, $artistRecord))
                 ->count(),
         ];
 
@@ -139,9 +171,13 @@ class ExplorerController extends Controller
             $query->where(function (Builder $nested) use ($search) {
                 $nested->where('artist', 'like', "%{$search}%")
                     ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('member_name', 'like', "%{$search}%")
                     ->orWhere('album', 'like', "%{$search}%")
                     ->orWhere('edition', 'like', "%{$search}%")
-                    ->orWhere('rarity', 'like', "%{$search}%");
+                    ->orWhere('rarity', 'like', "%{$search}%")
+                    ->orWhere('variant_type', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%")
+                    ->orWhereHas('aliases', fn (Builder $aliasQuery) => $aliasQuery->where('alias', 'like', "%{$search}%"));
             });
         }
 
@@ -285,6 +321,67 @@ class ExplorerController extends Controller
             ->get()
             ->first(fn ($card) => Str::slug($card->artist) === $catalog)
             ?->artist;
+    }
+
+    protected function resolveArtistRecordFromSlug(string $catalog): ?Artist
+    {
+        $needle = Str::slug($catalog);
+
+        return Artist::query()
+            ->get()
+            ->first(function (Artist $artist) use ($needle) {
+                $candidates = array_filter([
+                    $artist->slug,
+                    $artist->name,
+                    $artist->name_original,
+                ]);
+
+                foreach ($candidates as $candidate) {
+                    if (Str::slug((string) $candidate) === $needle) {
+                        return true;
+                    }
+                }
+
+                foreach ((array) ($artist->aliases ?? []) as $alias) {
+                    if (Str::slug((string) $alias) === $needle) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+    }
+
+    protected function catalogCardsQuery(string $artist, ?Artist $artistRecord, string $search, string $filter): Builder
+    {
+        $query = $this->filteredCardsQuery($search, $filter)->where(function (Builder $nested) use ($artist, $artistRecord) {
+            $nested->where('artist', $artist);
+
+            if ($artistRecord?->exists) {
+                $nested->orWhere('artist_id', $artistRecord->id);
+
+                if ($artistRecord->name_original && $artistRecord->name_original !== $artist) {
+                    $nested->orWhere('artist', $artistRecord->name_original);
+                }
+            }
+        });
+
+        return $query;
+    }
+
+    protected function constrainCatalogCards(Builder $query, string $artist, ?Artist $artistRecord): Builder
+    {
+        return $query->where(function (Builder $nested) use ($artist, $artistRecord) {
+            $nested->where('artist', $artist);
+
+            if ($artistRecord?->exists) {
+                $nested->orWhere('artist_id', $artistRecord->id);
+
+                if ($artistRecord->name_original && $artistRecord->name_original !== $artist) {
+                    $nested->orWhere('artist', $artistRecord->name_original);
+                }
+            }
+        });
     }
 
     protected function catalogBlurb(array $catalog): string

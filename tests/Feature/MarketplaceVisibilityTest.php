@@ -77,6 +77,7 @@ class MarketplaceVisibilityTest extends TestCase
     {
         $viewer = User::factory()->create();
         $owner = User::factory()->create(['username' => 'owner_with_orphan_check']);
+        $otherOwner = User::factory()->create(['username' => 'mismatched_listing_owner']);
         $listedCard = UserCard::factory()->for($owner)->listed(['is_public' => true])->create();
         MarketplaceListing::factory()->create([
             'user_id' => $owner->id,
@@ -88,19 +89,14 @@ class MarketplaceVisibilityTest extends TestCase
             'artist' => 'Ghost Owner',
         ]);
 
-        DB::statement('PRAGMA foreign_keys = OFF');
+        $mismatchedUserCard = UserCard::factory()->for($owner)->for($orphanCard)->listed(['is_public' => true])->create();
 
-        DB::table('marketplace_listings')->insert([
-            'user_id' => 999999,
-            'user_card_id' => UserCard::factory()->for($owner)->for($orphanCard)->listed(['is_public' => true])->create()->id,
+        MarketplaceListing::factory()->create([
+            'user_id' => $otherOwner->id,
+            'user_card_id' => $mismatchedUserCard->id,
             'card_id' => $orphanCard->id,
             'status' => 'active',
-            'is_visible' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
-
-        DB::statement('PRAGMA foreign_keys = ON');
 
         $response = $this->actingAs($viewer)->get(route('marketplace.index'));
 
@@ -131,6 +127,10 @@ class MarketplaceVisibilityTest extends TestCase
             'is_public' => true,
             'is_for_trade' => false,
             'is_for_sale' => false,
+            'card_id' => Card::factory()->create([
+                'title' => 'Inactive Archived Listing',
+                'artist' => 'Dream Sample',
+            ])->id,
         ]);
         MarketplaceListing::factory()->hidden()->create([
             'user_id' => $owner->id,
@@ -143,6 +143,33 @@ class MarketplaceVisibilityTest extends TestCase
             ->assertOk()
             ->assertSeeText($visibleCard->card->title)
             ->assertDontSeeText($inactiveCard->card->title);
+    }
+
+    public function test_all_listings_tab_includes_the_current_users_active_listing(): void
+    {
+        $owner = User::factory()->create(['username' => 'current_owner']);
+        $card = Card::factory()->create([
+            'title' => 'Owner Active Listing',
+            'artist' => 'IVE',
+        ]);
+        $userCard = UserCard::factory()->for($owner)->for($card)->listed([
+            'is_public' => true,
+            'is_for_sale' => true,
+            'listing_price' => 1800,
+        ])->create();
+
+        MarketplaceListing::factory()->create([
+            'user_id' => $owner->id,
+            'user_card_id' => $userCard->id,
+            'card_id' => $card->id,
+            'status' => 'active',
+            'is_visible' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('marketplace.index', ['filter' => 'all']))
+            ->assertOk()
+            ->assertSeeText('Owner Active Listing');
     }
 
     public function test_one_user_can_view_another_users_public_collection(): void
@@ -167,6 +194,10 @@ class MarketplaceVisibilityTest extends TestCase
             'is_public' => true,
             'is_for_trade' => false,
             'is_for_sale' => false,
+            'card_id' => Card::factory()->create([
+                'title' => 'Hidden Public Listing',
+                'artist' => 'Ghost Sample',
+            ])->id,
         ]);
 
         $this->actingAs($viewer)

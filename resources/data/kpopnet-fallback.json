@@ -1,0 +1,51 @@
+{
+  "groups": [
+    {
+      "id": "g-aespa",
+      "name": "aespa",
+      "debut_date": "2020-11-17",
+      "members": [
+        { "idol_id": "i-karina", "current": true },
+        { "idol_id": "i-giselle", "current": true },
+        { "idol_id": "i-winter", "current": true },
+        { "idol_id": "i-ningning", "current": true }
+      ]
+    },
+    {
+      "id": "g-ive",
+      "name": "IVE",
+      "debut_date": "2021-12-01",
+      "members": [
+        { "idol_id": "i-yujin", "current": true },
+        { "idol_id": "i-gaeul", "current": true },
+        { "idol_id": "i-rei", "current": true },
+        { "idol_id": "i-wonyoung", "current": true },
+        { "idol_id": "i-liz", "current": true },
+        { "idol_id": "i-leeseo", "current": true }
+      ]
+    }
+  ],
+  "idols": [
+    {
+      "id": "i-winter",
+      "name": "Winter",
+      "birth_date": "2001-01-01",
+      "debut_date": "2020-11-17",
+      "groups": ["g-aespa"]
+    },
+    {
+      "id": "i-wonyoung",
+      "name": "Wonyoung",
+      "birth_date": "2004-08-31",
+      "debut_date": "2021-12-01",
+      "groups": ["g-ive"]
+    },
+    {
+      "id": "i-karina",
+      "name": "Karina",
+      "birth_date": "2000-04-11",
+      "debut_date": "2020-11-17",
+      "groups": ["g-aespa"]
+    }
+  ]
+}

@@ -1,167 +1,82 @@
 @extends('layouts.app')
 
-@section('title', 'Collection Item Details')
-@section('layout_mode', 'shellless')
-@section('body_class', 'legacy-card-details-page')
+@section('title', 'CardFlow | Collection Item Details')
+@section('body_class', 'dashboard-body card-details-page')
 
-@section('content')
-<div class="app-container">
-
-    <aside class="sidebar">
-        <div class="brand">
-            <div class="brand-icon"></div>
-            <div>
-                <div class="brand-title">CardFlow</div>
-                <div class="brand-subtitle">Photocard Trading</div>
-            </div>
-        </div>
-
-        <ul class="menu">
-            <li>Dashboard</li>
-            <li class="active">My Collection</li>
-            <li>Marketplace</li>
-            <li>Wishlist</li>
-            <li>Messages</li>
-            <li>Explorer</li>
-            <li>Stats</li>
-        </ul>
-
-        <div class="collector">
-            <div class="collector-avatar">C</div>
-            <div>
-                <small>COLLECTOR</small>
-                <span>Chrisie</span>
-            </div>
-        </div>
-    </aside>
-
-    <main class="main-content">
-        <div class="page-header">
-            <h1 class="page-title">Collection Item Details</h1>
-            <a href="{{ route('collection.index') }}" class="back-btn">← Back to Collection</a>
-        </div>
-
-        <section class="details-card">
-            <div class="image-box">
-                <img
-                    src="{{ asset('images/spotify-card.png') }}"
-                    alt="Card Image"
-                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
-                >
-            </div>
-
-            <div class="info-list">
-                <div class="info-row">
-                    <div class="info-label">Artist / Group</div>
-                    <div class="info-value">BTS</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Card Title</div>
-                    <div class="info-value">JIMIN</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Album</div>
-                    <div class="info-value">2020</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Edition</div>
-                    <div class="info-value">V4</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Rarity</div>
-                    <div class="info-value">Mint</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Market Value</div>
-                    <div class="info-value">PHP 100.00</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Purchase Price</div>
-                    <div class="info-value">PHP 100.00</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Estimated Value</div>
-                    <div class="info-value">PHP 100.00</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Condition</div>
-                    <div class="info-value">Good</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Acquired At</div>
-                    <div class="info-value">01/07/2022</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Notes</div>
-                    <div class="info-value">Condition details, source, trade notes...</div>
-                </div>
-
-                <div class="details-card">
-    <div class="image-box">
-        <!-- Display card image -->
-        <img
-            src="{{ asset('storage/cards/' . ($card->thumbnail_style ?: 'default.jpg')) }}"
-            alt="{{ $card->title }}"
-            onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
-        >
-    </div>
-
-    <div class="info-list">
-        <div class="info-row">
-            <div class="info-label">Artist / Group</div>
-            <div class="info-value">{{ $card->artist }}</div>
-        </div>
-
-        <div class="info-row">
-            <div class="info-label">Card Title</div>
-            <div class="info-value">{{ $card->title }}</div>
-        </div>
-
-        <div class="info-row">
-            <div class="info-label">Edition</div>
-            <div class="info-value">{{ $card->edition }}</div>
-        </div>
-
-        <div class="info-row">
-            <div class="info-label">Album</div>
-            <div class="info-value">{{ $card->album }}</div>
-        </div>
-
-        <div class="info-row">
-            <div class="info-label">Rarity</div>
-            <div class="info-value">{{ $card->rarity }}</div>
-        </div>
-
-        <div class="info-row">
-            <div class="info-label">Market Value</div>
-            <div class="info-value">PHP {{ number_format($card->market_value, 2) }}</div>
-        </div>
-
-        <div class="info-row">
-            <div class="info-label">Released On</div>
-            <div class="info-value">{{ $card->released_on->format('F j, Y') }}</div>
-        </div>
-
-        <!-- You can display any other attributes you need here -->
-    </div>
-</div>
-            </div>
-        </section>
-    </main>
-
-</div>
-
-<button class="edit-btn">✎</button>
+@section('topbar')
 @endsection
 
+@section('content')
+<x-photocard-detail
+    context-label="Collection Item"
+    eyebrow="Collection Showcase"
+    :page-title="$card->title ?? 'Collection Item Details'"
+    subtitle="A closer look at this collection item from your personal collection."
+    :back-url="route('collection.index')"
+    back-label="Back to Collection"
+    :image-url="$imagePath"
+    :image-alt="$card->title ?? 'Collection item image'"
+    :rarity-label="$rarityLabel"
+    :rarity-class="\Illuminate\Support\Str::slug($rarityLabel)"
+    :artist-name="$card->artist ?? 'Not Available'"
+    :card-title="$card->title ?? 'Not Available'"
+    :primary-meta="[
+        ['label' => 'Album', 'value' => $card->album ?: 'Standalone'],
+        ['label' => 'Edition', 'value' => $card->edition ?: 'Standard'],
+        ['label' => 'Rarity', 'value' => $rarityLabel],
+    ]"
+    :secondary-meta="[
+        ['label' => 'Condition', 'value' => $userCard->condition ?? 'Not Available'],
+        ['label' => 'Acquired', 'value' => $userCard->acquired_at ? \Carbon\Carbon::parse($userCard->acquired_at)->format('M d, Y') : 'Not Available'],
+        ['label' => 'Collection', 'value' => 'Personal binder'],
+    ]"
+    :price-tiles="[
+        [
+            'label' => 'Market Value',
+            'value' => 'PHP '.number_format($marketValue, 2),
+            'trendText' => $userCard->price_trend === 'rising' ? 'Rising' : ($userCard->price_trend === 'falling' ? 'Falling' : 'Stable'),
+            'trendClass' => $userCard->price_trend,
+            'trendTitle' => 'Compared with your purchase price. Add pricing history later for richer trend tracking.',
+        ],
+        ['label' => 'Purchase Price', 'value' => 'PHP '.number_format($purchasePrice, 2)],
+        ['label' => 'Estimated Value', 'value' => 'PHP '.number_format($estimatedValue, 2)],
+    ]"
+    price-summary-label="Unrealized gain"
+    :price-summary-value="($isPositiveDelta ? '+' : '-') . 'PHP ' . number_format(abs($valueDelta), 2)"
+    :price-summary-tone="$isPositiveDelta ? 'is-positive' : 'is-negative'"
+>
+    <x-slot name="actions">
+        <a href="{{ route('collection.edit', $userCard) }}" class="card-title-edit-icon" aria-label="Edit card" title="Edit card">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+        </a>
+    </x-slot>
 
+    <div class="card-detail-secondary-actions card-detail-fade" style="--card-detail-delay: 175ms;">
+        <a href="{{ route('collection.edit', $userCard) }}" class="dashboard-add-card dashboard-add-card-secondary">
+            Edit card
+        </a>
+        <a href="{{ route('marketplace.create', ['user_card_id' => $userCard->id]) }}" class="dashboard-add-card">
+            Create listing from this card
+        </a>
+        <form method="POST" action="{{ route('collection.traded', $userCard) }}" class="dashboard-inline-form">
+            @csrf
+            @method('PATCH')
+            <button
+                type="submit"
+                class="dashboard-search-submit"
+                onclick="return confirm('Mark this card as traded and remove any active marketplace listing?')"
+            >
+                Mark as traded
+            </button>
+        </form>
+    </div>
+
+    <section class="dashboard-card card-note-shell card-detail-fade" style="--card-detail-delay: 200ms;">
+        <p class="mini-label">Notes</p>
+        <p>{{ $userCard->notes ?: 'No notes added yet.' }}</p>
+    </section>
+</x-photocard-detail>
+@endsection

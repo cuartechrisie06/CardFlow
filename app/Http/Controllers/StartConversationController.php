@@ -7,7 +7,6 @@ use App\Models\Conversation;
 use App\Models\MarketplaceListing;
 use App\Models\Message;
 use App\Models\User;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,18 +14,11 @@ use Illuminate\Support\Facades\DB;
 
 class StartConversationController extends Controller
 {
-    public function create(Request $request): View
+    public function create(Request $request): RedirectResponse
     {
-        $selectedRecipientId = $request->integer('recipient_id');
-
-        $users = User::query()
-            ->where('id', '!=', $request->user()->id)
-            ->orderBy('name')
-            ->get(['id', 'name', 'username', 'email']);
-
-        return view('messages.create', [
-            'users' => $users,
-            'selectedRecipientId' => $selectedRecipientId,
+        return redirect()->route('messages.index', [
+            'compose' => 1,
+            'recipient' => $request->integer('recipient_id') ?: null,
         ]);
     }
 

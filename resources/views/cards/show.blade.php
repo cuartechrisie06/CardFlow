@@ -83,11 +83,11 @@
                                 <span class="summary-label">Market Value</span>
                                 <strong>PHP {{ number_format($marketValue, 2) }}</strong>
                                 @if($userCard->price_trend === 'rising')
-                                    <span class="trend rising">▲ Rising</span>
+                                    <span class="trend rising" title="Compared with your purchase price. Add pricing history later for richer trend tracking.">▲ Rising</span>
                                 @elseif($userCard->price_trend === 'falling')
-                                    <span class="trend falling">▼ Falling</span>
+                                    <span class="trend falling" title="Compared with your purchase price. Add pricing history later for richer trend tracking.">▼ Falling</span>
                                 @else
-                                    <span class="trend stable">● Stable</span>
+                                    <span class="trend stable" title="Compared with your purchase price. Add pricing history later for richer trend tracking.">● Stable</span>
                                 @endif
                             </article>
                             <article class="card-financial-chip">
@@ -101,10 +101,30 @@
                         </div>
 
                         <div class="card-detail-profit {{ $isPositiveDelta ? 'is-positive' : 'is-negative' }}">
-                            <span class="summary-label">Net change</span>
+                            <span class="summary-label">Unrealized gain</span>
                             <strong>{{ $isPositiveDelta ? '+' : '-' }}PHP {{ number_format(abs($valueDelta), 2) }}</strong>
                         </div>
                     </section>
+
+                    <div class="card-detail-secondary-actions card-detail-fade" style="--card-detail-delay: 175ms;">
+                        <a href="{{ route('collection.edit', $userCard) }}" class="dashboard-add-card dashboard-add-card-secondary">
+                            Edit card
+                        </a>
+                        <a href="{{ route('marketplace.create', ['user_card_id' => $userCard->id]) }}" class="dashboard-add-card">
+                            Create listing from this card
+                        </a>
+                        <form method="POST" action="{{ route('collection.traded', $userCard) }}" class="dashboard-inline-form">
+                            @csrf
+                            @method('PATCH')
+                            <button
+                                type="submit"
+                                class="dashboard-search-submit"
+                                onclick="return confirm('Mark this card as traded and remove any active marketplace listing?')"
+                            >
+                                Mark as traded
+                            </button>
+                        </form>
+                    </div>
 
                     <section class="dashboard-card card-note-shell card-detail-fade" style="--card-detail-delay: 200ms;">
                         <p class="mini-label">Notes</p>
@@ -115,4 +135,3 @@
 
     <a href="{{ route('collection.edit', $userCard) }}" class="card-detail-fab" aria-label="Edit card" title="Edit card">✏</a>
 @endsection
-

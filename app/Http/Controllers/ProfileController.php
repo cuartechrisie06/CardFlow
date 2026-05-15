@@ -17,13 +17,7 @@ class ProfileController extends Controller
 {
     public function show(Request $request, User $user): View
     {
-        $user->loadCount([
-            'marketplaceListings as active_listings_count' => fn ($query) => $query->activeVisible(),
-            'trades as completed_trades_count' => fn ($query) => $query->where(function ($nested) {
-                $nested->whereNotNull('completed_at')
-                    ->orWhere('status', 'completed');
-            }),
-        ]);
+        $this->loadProfileStats($user);
 
         $viewer = $request->user();
         $isOwnProfile = $viewer?->is($user) ?? false;
@@ -61,12 +55,10 @@ class ProfileController extends Controller
                 ->get()
             : collect();
 
-        $totalCollectionValue = $collectionCards->sum(function (UserCard $userCard) {
-            return (float) ($userCard->estimated_value
-                ?? $userCard->purchase_price
-                ?? $userCard->card?->market_value
-                ?? 0);
-        });
+        // Recommendation: Move this to a query-level sum for better performance
+        $totalCollectionValue = UserCard::where('user_id', $user->id)
+            ->selectRaw('SUM(COALESCE(estimated_value, 0)) as total')
+            ->value('total');
 
         return view('profile.show', [
             'profileUser' => $user,
@@ -85,13 +77,7 @@ class ProfileController extends Controller
 
     public function showcase(Request $request, User $user): View
     {
-        $user->loadCount([
-            'marketplaceListings as active_listings_count' => fn ($query) => $query->activeVisible(),
-            'trades as completed_trades_count' => fn ($query) => $query->where(function ($nested) {
-                $nested->whereNotNull('completed_at')
-                    ->orWhere('status', 'completed');
-            }),
-        ]);
+        $this->loadProfileStats($user);
 
         $publicCards = UserCard::query()
             ->with('card')
@@ -147,23 +133,35 @@ class ProfileController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
-            'avatar' => ['nullable', 'image', 'max:5120'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'bio' => ['nullable', 'string', 'max:1000'],
             'location' => ['nullable', 'string', 'max:255'],
             'website' => ['nullable', 'url', 'max:255'],
         ]);
 
-        if ($request->hasFile('avatar')) {
+        if ($request->input('remove_avatar') === '1') {
             if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
+                $oldPath = storage_path('app/public/avatars/' . basename($user->avatar));
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+                $user->avatar = null;
+            }
+        } elseif ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
+            if ($user->avatar) {
+                $oldPath = storage_path('app/public/avatars/' . basename($user->avatar));
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
             }
 
-            $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+            $avatarFile = $request->file('avatar');
+            $filename = time() . '_' . $user->id . '.' . $avatarFile->getClientOriginalExtension();
+            $avatarFile->move(storage_path('app/public/avatars'), $filename);
+            $user->avatar = $filename;
         }
 
-        $validated['bio'] = $validated['bio'] ?? null;
-        $validated['location'] = $validated['location'] ?? null;
-        $validated['website'] = $validated['website'] ?? null;
+        $validated['avatar'] = $user->avatar;
 
         $user->update($validated);
 
@@ -176,6 +174,17 @@ class ProfileController extends Controller
     {
         return view('profile.settings', [
             'user' => $request->user(),
+        ]);
+    }
+
+    private function loadProfileStats(User $user): void
+    {
+        $user->loadCount([
+            'marketplaceListings as active_listings_count' => fn ($query) => $query->activeVisible(),
+            'trades as completed_trades_count' => fn ($query) => $query->where(function ($nested) {
+                $nested->whereNotNull('completed_at')
+                    ->orWhere('status', 'completed');
+            }),
         ]);
     }
 }

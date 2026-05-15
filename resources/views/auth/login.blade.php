@@ -9,14 +9,17 @@
             $authMode = session('auth_mode');
 
             if (! $authMode) {
-                $authMode = $errors->register->isNotEmpty() ? 'signup' : 'signin';
+                $authMode = $errors->register->isNotEmpty() ? 'register' : 'signin';
+            }
+
+            if ($authMode === 'signup') {
+                $authMode = 'register';
             }
         @endphp
         <main class="cardflow-shell">
             <section class="hero-panel">
-                <div class="brand-lockup">
-                    <div class="brand-mark" aria-hidden="true"></div>
-                    <span class="brand-name">CARDFLOW</span>
+                <div class="brand-lockup brand-lockup--logo">
+                    <img src="{{ asset('images/cardflow-logo.svg') }}" alt="CardFlow" class="brand-logo">
                 </div>
                 <div class="brand-chip">Photocard Trading</div>
 
@@ -70,15 +73,29 @@
             <section class="auth-panel" aria-label="Account access panel">
                 <div class="auth-card" data-auth-card>
                     <div class="auth-switch" role="tablist" aria-label="Authentication mode">
-                        <button type="button" class="auth-switch-button {{ $authMode === 'signin' ? 'is-active' : '' }}" data-auth-trigger="signin" aria-selected="{{ $authMode === 'signin' ? 'true' : 'false' }}">Sign in</button>
-                        <button type="button" class="auth-switch-button {{ $authMode === 'signup' ? 'is-active' : '' }}" data-auth-trigger="signup" aria-selected="{{ $authMode === 'signup' ? 'true' : 'false' }}">Create account</button>
+                        <button
+                            type="button"
+                            id="tab-signin"
+                            role="tab"
+                            class="auth-switch-button auth-tab {{ $authMode === 'signin' ? 'is-active active' : '' }}"
+                            data-auth-trigger="signin"
+                            onclick="switchTab('signin')"
+                            aria-controls="form-signin"
+                            aria-selected="{{ $authMode === 'signin' ? 'true' : 'false' }}"
+                        >Sign in</button>
+                        <button
+                            type="button"
+                            id="tab-register"
+                            role="tab"
+                            class="auth-switch-button auth-tab {{ $authMode === 'register' ? 'is-active active' : '' }}"
+                            data-auth-trigger="register"
+                            onclick="switchTab('register')"
+                            aria-controls="form-register"
+                            aria-selected="{{ $authMode === 'register' ? 'true' : 'false' }}"
+                        >Create account</button>
                     </div>
 
-                    @if (session('status'))
-                        <div class="auth-status">{{ session('status') }}</div>
-                    @endif
-
-                    <div class="auth-pane {{ $authMode === 'signin' ? 'is-active' : '' }}" data-auth-pane="signin" @if ($authMode !== 'signin') hidden @endif>
+                    <div id="form-signin" class="auth-pane {{ $authMode === 'signin' ? 'is-active' : '' }}" data-auth-pane="signin" @if ($authMode !== 'signin') hidden @endif>
                         <p class="auth-kicker">Sign In</p>
                         <h2>Welcome back</h2>
                         <p class="auth-copy">Use your account details to continue your collection journey.</p>
@@ -115,10 +132,15 @@
                             <button type="submit" class="submit-button">Sign in</button>
                         </form>
 
-                        <p class="signup-copy">Need a new account? <button type="button" class="field-link auth-inline-link" data-auth-link="signup">Create one</button></p>
+                        <p class="signup-copy">
+                            Need a new account?
+                            <button type="button" class="field-link auth-inline-link auth-inline-button" data-auth-link="register" onclick="switchTab('register')">
+                                Create one
+                            </button>
+                        </p>
                     </div>
 
-                    <div class="auth-pane {{ $authMode === 'signup' ? 'is-active' : '' }}" data-auth-pane="signup" @if ($authMode !== 'signup') hidden @endif>
+                    <div id="form-register" class="auth-pane {{ $authMode === 'register' ? 'is-active' : '' }}" data-auth-pane="register" @if ($authMode !== 'register') hidden @endif>
                         <p class="auth-kicker">Create Account</p>
                         <h2>Start your trading hub</h2>
                         <p class="auth-copy">Set up your profile and start organizing your photocard collection in one place.</p>
@@ -178,10 +200,48 @@
                             <button type="submit" class="submit-button">Create account</button>
                         </form>
 
-                        <p class="signup-copy">Already have an account? <button type="button" class="field-link auth-inline-link" data-auth-link="signin">Sign in</button></p>
+                        <p class="signup-copy">
+                            Already have an account?
+                            <button type="button" class="field-link auth-inline-link auth-inline-button" data-auth-link="signin" onclick="switchTab('signin')">
+                                Sign in
+                            </button>
+                        </p>
                     </div>
                 </div>
             </section>
         </main>
 @endsection
 
+@push('scripts')
+<script>
+function switchTab(tab) {
+    const mode = tab === 'register' || tab === 'signup' ? 'register' : 'signin';
+    const signin = document.getElementById('form-signin');
+    const register = document.getElementById('form-register');
+    const tabSignin = document.getElementById('tab-signin');
+    const tabRegister = document.getElementById('tab-register');
+
+    if (!signin || !register || !tabSignin || !tabRegister) {
+        return;
+    }
+
+    const showSignin = mode === 'signin';
+    signin.hidden = !showSignin;
+    register.hidden = showSignin;
+    signin.classList.toggle('is-active', showSignin);
+    register.classList.toggle('is-active', !showSignin);
+
+    tabSignin.classList.toggle('is-active', showSignin);
+    tabSignin.classList.toggle('active', showSignin);
+    tabSignin.setAttribute('aria-selected', showSignin ? 'true' : 'false');
+
+    tabRegister.classList.toggle('is-active', !showSignin);
+    tabRegister.classList.toggle('active', !showSignin);
+    tabRegister.setAttribute('aria-selected', !showSignin ? 'true' : 'false');
+}
+
+@if ($errors->register->isNotEmpty())
+    switchTab('register');
+@endif
+</script>
+@endpush

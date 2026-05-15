@@ -17,7 +17,10 @@ class ProfileUpdateTest extends TestCase
         Storage::fake('public');
 
         $user = User::factory()->create();
-        $avatar = UploadedFile::fake()->createWithContent('avatar.jpg', 'fake-image-content');
+        $avatar = UploadedFile::fake()->createWithContent(
+            'avatar.png',
+            base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=')
+        );
 
         $response = $this->actingAs($user)->put(route('profile.update'), [
             'name' => 'Updated Collector',
@@ -39,7 +42,34 @@ class ProfileUpdateTest extends TestCase
         $this->assertSame('Manila, PH', $user->location);
         $this->assertSame('https://cardflow.test/profile', $user->website);
         $this->assertNotNull($user->avatar);
-        Storage::disk('public')->assertExists($user->avatar);
+        $this->assertStringNotContainsString('avatars/', $user->avatar);
+        Storage::disk('public')->assertExists('avatars/'.$user->avatar);
+        $this->assertStringContainsString('/storage/avatars/'.$user->avatar, $user->avatar_url);
+    }
+
+    public function test_user_can_remove_avatar_on_update(): void
+    {
+        $user = User::factory()->create([
+            'avatar' => 'existing-avatar.png',
+        ]);
+
+        $avatarPath = storage_path('app/public/avatars/existing-avatar.png');
+        if (! is_dir(dirname($avatarPath))) {
+            mkdir(dirname($avatarPath), 0777, true);
+        }
+        file_put_contents($avatarPath, 'old-avatar');
+
+        $this->actingAs($user)->put(route('profile.update'), [
+            'name' => 'Collector Name',
+            'username' => $user->username,
+            'email' => $user->email,
+            'remove_avatar' => '1',
+        ])->assertRedirect(route('profile.edit'));
+
+        $user->refresh();
+
+        $this->assertNull($user->avatar);
+        $this->assertFileDoesNotExist($avatarPath);
     }
 
     public function test_updating_profile_only_changes_authenticated_user(): void

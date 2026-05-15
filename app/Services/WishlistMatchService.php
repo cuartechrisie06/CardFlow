@@ -9,6 +9,40 @@ use Illuminate\Support\Collection;
 
 class WishlistMatchService
 {
+    public function markMatchesForListing(MarketplaceListing $listing): int
+    {
+        $listing->loadMissing(['card', 'user', 'userCard']);
+
+        if (! $listing->user || ! $listing->card || ! $listing->userCard) {
+            return 0;
+        }
+
+        if ($listing->status !== 'active' || ! $listing->is_visible) {
+            return 0;
+        }
+
+        $matchedCount = 0;
+
+        WishlistItem::query()
+            ->with('card')
+            ->where('user_id', '!=', $listing->user_id)
+            ->chunkById(200, function (Collection $wishlistItems) use ($listing, &$matchedCount) {
+                foreach ($wishlistItems as $wishlistItem) {
+                    if ($this->scoreListingAgainstWishlist($wishlistItem, $listing) <= 0) {
+                        continue;
+                    }
+
+                    if ($wishlistItem->matched_at === null) {
+                        $wishlistItem->forceFill(['matched_at' => now()])->save();
+                    }
+
+                    $matchedCount++;
+                }
+            });
+
+        return $matchedCount;
+    }
+
     public function buildMatchesForUser(User $user, Collection $wishlistItems, int $limitPerItem = 3): Collection
     {
         if ($wishlistItems->isEmpty()) {

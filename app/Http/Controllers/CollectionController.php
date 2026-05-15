@@ -14,6 +14,9 @@ class CollectionController extends Controller
 
         $search = trim((string) $request->string('q'));
         $filter = (string) $request->string('filter', 'all');
+        $hasAnyCollectionCards = UserCard::query()
+            ->where('user_id', $user->id)
+            ->exists();
 
         $collectionQuery = UserCard::query()
             ->with('card')
@@ -66,6 +69,7 @@ class CollectionController extends Controller
                 ],
             ],
             'collectionCount' => $collectionCards->total(),
+            'hasAnyCollectionCards' => $hasAnyCollectionCards,
         ]);
     }
 }

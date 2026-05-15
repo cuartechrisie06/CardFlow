@@ -42,7 +42,7 @@ class StatsPageTest extends TestCase
         $this->actingAs($user)
             ->get(route('stats.index'))
             ->assertOk()
-            ->assertSeeText('Collection insights')
+            ->assertSeeText('Collection stats')
             ->assertSeeText('PHP 3,200')
             ->assertSeeText('50%')
             ->assertSeeText('Aespa')
@@ -53,5 +53,26 @@ class StatsPageTest extends TestCase
     {
         $this->get(route('stats.index'))
             ->assertRedirect(route('login'));
+    }
+
+    public function test_authenticated_user_can_download_stats_csv(): void
+    {
+        $user = User::factory()->create();
+        $card = Card::factory()->create([
+            'artist' => 'Aespa',
+            'market_value' => 1200,
+            'rarity' => 'Rare',
+            'title' => 'Winter Broadcast',
+        ]);
+
+        UserCard::factory()->for($user)->for($card)->create([
+            'estimated_value' => 1300,
+            'condition' => 'Mint',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('stats.export.csv'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
     }
 }

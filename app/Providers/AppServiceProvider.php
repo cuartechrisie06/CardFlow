@@ -29,6 +29,18 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(UserCard::class, UserCardPolicy::class);
 
+        \Blade::directive('initials', function ($expression) {
+            return "<?php
+                \$_nameParts = explode(' ', trim({$expression}));
+                echo strtoupper(
+                    substr(\$_nameParts[0], 0, 1) .
+                    (isset(\$_nameParts[1])
+                        ? substr(\$_nameParts[1], 0, 1)
+                        : substr(\$_nameParts[0], 1, 1))
+                );
+            ?>";
+        });
+
         View::share('formatMoney', fn (
             $v
         ) => 'PHP ' . number_format((float) $v, 2));
@@ -41,9 +53,21 @@ class AppServiceProvider extends ServiceProvider
             default => $r ?? 'Unknown',
         });
 
-        View::share('storagePhotoUrl', fn (?string $path) => $path && Storage::disk('public')->exists($path)
-            ? Storage::url($path)
-            : null);
+        View::share('storagePhotoUrl', function (?string $path): ?string {
+            if (! $path) {
+                return null;
+            }
+
+            $normalizedPath = str_replace('\\', '/', $path);
+            $normalizedPath = preg_replace('#^.*storage/app/public/#', '', $normalizedPath) ?: $normalizedPath;
+            $normalizedPath = preg_replace('#^.*public/storage/#', '', $normalizedPath) ?: $normalizedPath;
+            $normalizedPath = preg_replace('#^/?storage/#', '', $normalizedPath) ?: $normalizedPath;
+            $normalizedPath = ltrim($normalizedPath, '/');
+
+            return Storage::disk('public')->exists($normalizedPath)
+                ? Storage::url($normalizedPath)
+                : null;
+        });
 
         View::composer('*', function ($view) {
             $unreadCount = 0;
@@ -111,4 +135,3 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 }
-

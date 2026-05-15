@@ -31,9 +31,7 @@ class MarketplaceCardController extends Controller
 
         $userCard = $listing->userCard;
         $owner = $listing->user;
-        $photoUrl = $userCard->photo_path && Storage::disk('public')->exists($userCard->photo_path)
-            ? Storage::url($userCard->photo_path)
-            : null;
+        $photoUrl = $this->publicStorageUrl($userCard->photo_path);
         $marketValue = (float) ($userCard->card->market_value ?? 0);
         $purchasePrice = (float) ($userCard->purchase_price ?? 0);
         $estimatedValue = (float) ($userCard->estimated_value ?? $marketValue);
@@ -52,5 +50,22 @@ class MarketplaceCardController extends Controller
             'valueDelta' => $valueDelta,
             'isPositiveDelta' => $isPositiveDelta,
         ]);
+    }
+
+    private function publicStorageUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $normalizedPath = str_replace('\\', '/', $path);
+        $normalizedPath = preg_replace('#^.*storage/app/public/#', '', $normalizedPath) ?: $normalizedPath;
+        $normalizedPath = preg_replace('#^.*public/storage/#', '', $normalizedPath) ?: $normalizedPath;
+        $normalizedPath = preg_replace('#^/?storage/#', '', $normalizedPath) ?: $normalizedPath;
+        $normalizedPath = ltrim($normalizedPath, '/');
+
+        return Storage::disk('public')->exists($normalizedPath)
+            ? Storage::url($normalizedPath)
+            : null;
     }
 }

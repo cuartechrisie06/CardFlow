@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Activity;
 use App\Models\Card;
 use App\Models\Trade;
+use App\Models\UserOnboarding;
 use App\Models\UserCard;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
@@ -22,8 +23,7 @@ class DashboardController extends Controller
         $metrics = [
             'total_cards' => $user->userCards()->count(),
             'collection_value' => (float) $user->userCards()
-                ->join('cards', 'cards.id', '=', 'user_cards.card_id')
-                ->sum(DB::raw('coalesce(user_cards.estimated_value, cards.market_value)')),
+                ->sum(DB::raw('coalesce(user_cards.estimated_value, 0)')),
             'active_trades' => $user->trades()
                 ->whereIn('status', ['pending', 'new_offer', 'in_progress'])
                 ->count(),
@@ -31,6 +31,8 @@ class DashboardController extends Controller
                 ->whereNotNull('matched_at')
                 ->count(),
         ];
+
+        $onboarding = UserOnboarding::query()->firstOrCreate(['user_id' => $user->id]);
 
         $valueTrend = $this->buildValueTrend($user->id);
         $tradeDistribution = $this->buildTradeDistribution($user->id);
@@ -47,7 +49,8 @@ class DashboardController extends Controller
             'activityFeed',
             'trendingCards',
             'searchResults',
-            'searchQuery'
+            'searchQuery',
+            'onboarding'
         ));
     }
 
@@ -57,10 +60,9 @@ class DashboardController extends Controller
             ->map(fn (int $offset) => now()->startOfMonth()->subMonths($offset));
 
         $cardValues = DB::table('user_cards')
-            ->join('cards', 'cards.id', '=', 'user_cards.card_id')
             ->where('user_cards.user_id', $userId)
             ->selectRaw('COALESCE(user_cards.acquired_at, user_cards.created_at) as effective_date')
-            ->selectRaw('COALESCE(user_cards.estimated_value, cards.market_value, 0) as effective_value')
+            ->selectRaw('COALESCE(user_cards.estimated_value, 0) as effective_value')
             ->get();
 
         $points = $months->map(function (Carbon $month) use ($cardValues) {

@@ -17,8 +17,7 @@ class StatsController extends Controller
         $user = $request->user();
 
         $totalValue = (float) $user->userCards()
-            ->join('cards', 'cards.id', '=', 'user_cards.card_id')
-            ->sum(DB::raw('coalesce(user_cards.estimated_value, cards.market_value)'));
+            ->sum(DB::raw('coalesce(user_cards.estimated_value, 0)'));
 
         $rarityChartData = DB::table('user_cards')
             ->join('cards', 'cards.id', '=', 'user_cards.card_id')
@@ -260,8 +259,7 @@ class StatsController extends Controller
     $user = $request->user();
 
     $totalValue = (float) $user->userCards()
-        ->join('cards', 'cards.id', '=', 'user_cards.card_id')
-        ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, cards.market_value, 0)'));
+        ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, 0)'));
 
     $tradeBase = $user->trades()->count();
 
@@ -345,8 +343,7 @@ public function shareSnapshot(Request $request)
     $user = $request->user();
 
     $totalValue = (float) $user->userCards()
-        ->join('cards', 'cards.id', '=', 'user_cards.card_id')
-        ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, cards.market_value, 0)'));
+        ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, 0)'));
 
     $totalCards = $user->userCards()->count();
 

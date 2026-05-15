@@ -17,24 +17,22 @@
                 </header>
 
                 <section class="dashboard-card collection-card-shell">
-                    @if (session('status'))
-                        <div class="auth-status">{{ session('status') }}</div>
+                    @if ($hasAnyCollectionCards)
+                        <form method="GET" action="{{ route('collection.index') }}" class="collection-toolbar">
+                            <label class="collection-search">
+                                <span class="sr-only">Search collection</span>
+                                <input type="search" name="q" value="{{ $filters['search'] }}" placeholder="Search by idol, group, or album...">
+                            </label>
+
+                            <div class="collection-filters">
+                                @foreach ($filters['items'] as $value => $label)
+                                    <button type="submit" name="filter" value="{{ $value }}" class="collection-filter {{ $filters['active'] === $value ? 'is-active' : '' }}">
+                                        {{ $label }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </form>
                     @endif
-
-                    <form method="GET" action="{{ route('collection.index') }}" class="collection-toolbar">
-                        <label class="collection-search">
-                            <span class="sr-only">Search collection</span>
-                            <input type="search" name="q" value="{{ $filters['search'] }}" placeholder="Search by idol, group, or album...">
-                        </label>
-
-                        <div class="collection-filters">
-                            @foreach ($filters['items'] as $value => $label)
-                                <button type="submit" name="filter" value="{{ $value }}" class="collection-filter {{ $filters['active'] === $value ? 'is-active' : '' }}">
-                                    {{ $label }}
-                                </button>
-                            @endforeach
-                        </div>
-                    </form>
 
                     <div class="collection-grid">
                         @forelse ($collectionCards as $item)
@@ -83,16 +81,18 @@
                                         type="button"
                                         class="collection-delete-btn js-open-collection-delete-modal"
                                         data-delete-url="{{ route('collection.destroy', $item) }}"
+                                        aria-label="Open card actions for {{ $card->title }}"
+                                        title="Card actions"
                                     >
-                                        Delete
+                                        <span aria-hidden="true">...</span>
                                     </button>
                                 </div>
                             </article>
                         @empty
                             <div class="collection-empty collection-empty-rich">
                                 <div class="collection-empty-icon" aria-hidden="true">🧺</div>
-                                <h3>Your collection is empty.</h3>
-                                <p>Start by adding your first photocard.</p>
+                                <h3>Start with your favorite card.</h3>
+                                <p>Add one photocard now; you can mark it private, trade-only, or public later.</p>
                                 <a href="{{ route('collection.create') }}" class="dashboard-add-card">
                                     + Add Card
                                 </a>
@@ -100,26 +100,28 @@
                         @endforelse
                     </div>
 
-                    <div class="collection-footer">
-                        <p>Showing {{ $collectionCards->firstItem() ?? 0 }} to {{ $collectionCards->lastItem() ?? 0 }} of {{ $collectionCount }} cards</p>
-                        <div class="collection-pagination">
-                            @if ($collectionCards->onFirstPage())
-                                <span class="page-button is-disabled">&lsaquo;</span>
-                            @else
-                                <a href="{{ $collectionCards->previousPageUrl() }}" class="page-button">&lsaquo;</a>
-                            @endif
+                    @if ($hasAnyCollectionCards && $collectionCount > 0)
+                        <div class="collection-footer">
+                            <p>Showing {{ $collectionCards->firstItem() ?? 0 }} to {{ $collectionCards->lastItem() ?? 0 }} of {{ $collectionCount }} cards</p>
+                            <div class="collection-pagination">
+                                @if ($collectionCards->onFirstPage())
+                                    <span class="page-button is-disabled">&lsaquo;</span>
+                                @else
+                                    <a href="{{ $collectionCards->previousPageUrl() }}" class="page-button">&lsaquo;</a>
+                                @endif
 
-                            @foreach ($collectionCards->getUrlRange(1, $collectionCards->lastPage()) as $page => $url)
-                                <a href="{{ $url }}" class="page-button {{ $collectionCards->currentPage() === $page ? 'is-active' : '' }}">{{ $page }}</a>
-                            @endforeach
+                                @foreach ($collectionCards->getUrlRange(1, $collectionCards->lastPage()) as $page => $url)
+                                    <a href="{{ $url }}" class="page-button {{ $collectionCards->currentPage() === $page ? 'is-active' : '' }}">{{ $page }}</a>
+                                @endforeach
 
-                            @if ($collectionCards->hasMorePages())
-                                <a href="{{ $collectionCards->nextPageUrl() }}" class="page-button">&rsaquo;</a>
-                            @else
-                                <span class="page-button is-disabled">&rsaquo;</span>
-                            @endif
+                                @if ($collectionCards->hasMorePages())
+                                    <a href="{{ $collectionCards->nextPageUrl() }}" class="page-button">&rsaquo;</a>
+                                @else
+                                    <span class="page-button is-disabled">&rsaquo;</span>
+                                @endif
+                            </div>
                         </div>
-                    </div>
+                    @endif
                 </section>
         <div class="delete-modal" id="collectionDeleteModal" aria-hidden="true">
     <div class="delete-modal-backdrop js-close-collection-delete-modal"></div>
@@ -200,4 +202,3 @@
         });
     </script>
 @endsection
-

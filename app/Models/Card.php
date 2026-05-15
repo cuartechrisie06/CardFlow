@@ -17,10 +17,16 @@ class Card extends Model
         'artist',
         'artist_id',
         'title',
+        'slug',
+        'member_name',
         'edition',
         'album',
         'album_id',
         'rarity',
+        'variant_type',
+        'finish',
+        'official_image_url',
+        'catalog_code',
         'market_value',
         'thumbnail_style',
         'trend_score',
@@ -63,5 +69,15 @@ class Card extends Model
     public function marketplaceListings(): HasMany
     {
         return $this->hasMany(MarketplaceListing::class);
+    }
+
+    public function aliases(): HasMany
+    {
+        return $this->hasMany(CardAlias::class);
+    }
+
+    public function variants(): HasMany
+    {
+        return $this->hasMany(CardVariant::class);
     }
 }

@@ -1,7 +1,21 @@
 <aside class="dashboard-sidebar">
+    <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" height="28" viewBox="0 0 200 36" role="img" aria-label="CardFlow" class="sidebar-logo-img">
+            <rect x="0" y="4" width="22" height="30" rx="4" fill="rgba(255,255,255,0.4)" transform="rotate(-6,11,19)" />
+            <rect x="4" y="2" width="22" height="30" rx="4" fill="rgba(255,255,255,0.65)" transform="rotate(-1,15,17)" />
+            <rect x="8" y="1" width="22" height="30" rx="4" fill="rgba(255,255,255,0.9)" />
+            <text x="36" y="24" font-family="Georgia,serif" font-size="20" font-weight="700" fill="#ffffff">Card</text>
+            <text x="90" y="24" font-family="Georgia,serif" font-size="20" font-weight="400" fill="rgba(255,255,255,0.75)">Flow</text>
+        </svg>
+    </div>
+
     <a href="{{ route('profile.show', $username) }}" class="user-card-link" aria-label="View your profile">
         <div class="sidebar-brand user-card">
-            <div class="sidebar-avatar"></div>
+            @if ($user->avatar_url)
+                <img src="{{ $user->avatar_url }}" alt="{{ $user->name }} avatar" class="sidebar-avatar sidebar-avatar-img">
+            @else
+                <div class="sidebar-avatar sidebar-avatar-initials">@initials($user->name)</div>
+            @endif
             <div>
                 <p>{{ $user->name }}</p>
                 <span>{{ '@'.$username }}</span>

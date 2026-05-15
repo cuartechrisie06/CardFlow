@@ -31,8 +31,8 @@ class MessagesController extends Controller
                 'messages',
             ])
             ->with([
-                'userOne:id,name,username',
-                'userTwo:id,name,username',
+                'userOne:id,name,username,avatar',
+                'userTwo:id,name,username,avatar',
                 'latestMessage' => fn ($query) => $query
                     ->withValidRelations()
                     ->latest('created_at'),
@@ -70,8 +70,8 @@ class MessagesController extends Controller
                 ->forUser($user)
                 ->withCount('messages')
                 ->with([
-                    'userOne:id,name,username',
-                    'userTwo:id,name,username',
+                    'userOne:id,name,username,avatar',
+                    'userTwo:id,name,username,avatar',
                     'latestMessage' => fn ($query) => $query
                         ->withValidRelations()
                         ->latest('created_at'),
@@ -80,7 +80,7 @@ class MessagesController extends Controller
                     'marketplaceListing.userCard:id,card_id,photo_path,listing_price,is_for_sale,is_for_trade',
                     'messages' => fn ($query) => $query
                         ->withValidRelations()
-                        ->with(['sender:id,name,username', 'receiver:id,name,username'])
+                        ->with(['sender:id,name,username,avatar', 'receiver:id,name,username,avatar'])
                         ->oldest('created_at'),
                 ])
                 ->find($activeConversationId);
@@ -148,4 +148,3 @@ class MessagesController extends Controller
         ]);
     }
 }
-

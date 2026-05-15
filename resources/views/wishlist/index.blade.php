@@ -24,10 +24,6 @@
                     </div>
                 </header>
 
-                @if (session('status'))
-                    <div class="auth-status">{{ session('status') }}</div>
-                @endif
-
                 <section class="wishlist-page-grid">
                     <article class="wishlist-panel">
                         <div class="wishlist-panel-top">
@@ -63,8 +59,8 @@
                             @empty
                                 <div class="collection-empty collection-empty-rich">
                                     <div class="collection-empty-icon" aria-hidden="true">⭐</div>
-                                    <h3>Your wishlist is empty.</h3>
-                                    <p>Add cards you're looking for.</p>
+                                    <h3>Add a card you are actively hunting.</h3>
+                                    <p>CardFlow matches by artist, album, title, and edition when other collectors publish listings.</p>
                                     <button type="button" id="empty-add-wishlist-btn" class="dashboard-add-card">
                                         + Add to Wishlist
                                     </button>
@@ -121,7 +117,7 @@
                             <div class="collection-empty collection-empty-rich">
                                 <div class="collection-empty-icon" aria-hidden="true">🪄</div>
                                 <h3>No live matches yet.</h3>
-                                <p>We’ll surface real marketplace listings here when they appear.</p>
+                                <p>You’ll see matches here when another collector lists a similar artist, album, title, or edition.</p>
                                 <a href="{{ route('marketplace.index') }}" class="dashboard-add-card">
                                     Browse Marketplace
                                 </a>
@@ -138,7 +134,6 @@
                                 <p class="mini-label">Add wishlist item</p>
                                 <h2 id="wishlistModalTitle">Track a wanted photocard</h2>
                             </div>
-                            <span class="mini-chip">Saved to your account</span>
                         </div>
 
                         <form method="POST" action="{{ route('wishlist.store') }}" class="card-create-form wishlist-modal-form">
@@ -169,6 +164,7 @@
                                         <option value="medium" @selected(old('priority') === 'medium')>Medium priority</option>
                                         <option value="low" @selected(old('priority') === 'low')>Low priority</option>
                                     </select>
+                                    <small class="field-hint">High = actively searching. Medium = interested. Low = watching.</small>
                                     @error('priority') <small class="field-error">{{ $message }}</small> @enderror
                                 </label>
 

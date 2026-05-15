@@ -2,33 +2,44 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\KpopGroup;
+use App\Models\KpopIdol;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class KpopController extends Controller
 {
-    /**
-     * Fetch idols or groups from a K-pop API.
-     */
     public function index(Request $request): JsonResponse
     {
-        $search = $request->query('search');
+        $search = trim((string) $request->query('search', ''));
+        $type = (string) $request->query('type', 'idols');
+        $isGroups = $type === 'groups';
 
-        // Using a placeholder K-pop API. Replace with your preferred provider's URL.
-        $apiUrl = 'https://kpop-api-example.vercel.app/idols';
+        $data = $isGroups
+            ? KpopGroup::query()
+                ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+                ->orderBy('name')
+                ->limit(50)
+                ->get()
+                ->map(fn (KpopGroup $group) => $group->toArray())
+                ->all()
+            : KpopIdol::query()
+                ->when($search !== '', fn ($query) => $query->where(function ($nested) use ($search) {
+                    $nested->where('stage_name', 'like', "%{$search}%")
+                        ->orWhere('full_name', 'like', "%{$search}%")
+                        ->orWhere('korean_name', 'like', "%{$search}%")
+                        ->orWhere('group_name', 'like', "%{$search}%");
+                }))
+                ->orderBy('stage_name')
+                ->limit(50)
+                ->get()
+                ->map(fn (KpopIdol $idol) => $idol->toArray())
+                ->all();
 
-        $response = Http::get($apiUrl, [
-            'name' => $search,
+        return response()->json([
+            'ok' => count($data) > 0,
+            'type' => $isGroups ? 'groups' : 'idols',
+            'data' => $data,
         ]);
-
-        if ($response->failed()) {
-            Log::error('K-pop API Request Failed', ['status' => $response->status(), 'body' => $response->body()]);
-
-            return response()->json(['error' => 'Failed to fetch data'], 500);
-        }
-
-        return response()->json($response->json());
     }
 }

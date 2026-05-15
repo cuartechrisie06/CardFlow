@@ -34,6 +34,21 @@ class AuthDashboardTest extends TestCase
         ]);
     }
 
+    public function test_registration_requires_terms_acceptance(): void
+    {
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Chrisie Noreen Cuarte',
+            'username' => 'cuarte_terms',
+            'email' => 'terms@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors('terms', null, 'register');
+        $this->assertGuest();
+    }
+
     public function test_registered_user_can_log_in(): void
     {
         $user = User::factory()->create([

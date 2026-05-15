@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\CardController;
 use App\Http\Controllers\CollectionCardController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExplorerController;
+use App\Http\Controllers\KpopController;
 use App\Http\Controllers\MarkConversationReadController;
 use App\Http\Controllers\MarketplaceCardController;
 use App\Http\Controllers\MarketplaceController;
@@ -46,6 +48,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/collection/{userCard}', [CollectionCardController::class, 'show'])->name('collection.show');
     Route::get('/collection/{userCard}/edit', [CollectionCardController::class, 'edit'])->name('collection.edit');
     Route::put('/collection/{userCard}', [CollectionCardController::class, 'update'])->name('collection.update');
+    Route::patch('/collection/{userCard}/traded', [CollectionCardController::class, 'markAsTraded'])->name('collection.traded');
     Route::delete('/collection/{userCard}', [CollectionCardController::class, 'destroy'])->name('collection.destroy');
     Route::get('/cards/{id}', [CollectionCardController::class, 'showCard'])->name('cards.show');
     Route::post('/cards/{card}/upload-proof', [CardController::class, 'uploadProof'])->name('cards.uploadProof');
@@ -69,6 +72,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/messages', [SendMessageController::class, 'store'])->name('messages.store');
     Route::post('/messages/{conversation}/read', [MarkConversationReadController::class, 'store'])->name('messages.read');
     Route::get('/explorer', [ExplorerController::class, 'index'])->name('explorer.index');
+    Route::get('/api/kpop', [KpopController::class, 'index'])->name('api.kpop');
     Route::post('/explorer/save-view', [ExplorerController::class, 'storeSavedView'])->name('explorer.saved-views.store');
     Route::get('/explorer/catalogs/{catalog}', [ExplorerController::class, 'show'])->name('explorer.catalogs.show');
     Route::post('/messages/listings/{marketplaceListing}', [OpenMarketplaceConversationController::class, 'store'])->name('messages.listings.store');

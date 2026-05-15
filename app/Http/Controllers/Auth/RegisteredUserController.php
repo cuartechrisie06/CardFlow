@@ -14,8 +14,9 @@ class RegisteredUserController extends Controller
 {
     public function create()
     {
-    return view('auth.register');
+        return view('auth.register');
     }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = Validator::make(
@@ -31,6 +32,8 @@ class RegisteredUserController extends Controller
                 'terms.accepted' => 'You must accept the community guidelines and privacy terms.',
             ]
         )->validateWithBag('register');
+
+        unset($validated['terms']);
 
         $user = User::create($validated);
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Card;
+use App\Models\UserOnboarding;
 use App\Models\WishlistItem;
 use App\Services\WishlistMatchService;
 use Illuminate\Contracts\View\View;
@@ -102,6 +103,11 @@ class WishlistController extends Controller
 
             return [$item, $created];
         })();
+
+        UserOnboarding::query()->updateOrCreate(
+            ['user_id' => $request->user()->id],
+            ['added_wishlist_item' => true],
+        );
 
         return redirect()->route('wishlist.index')
             ->with('status', $created
