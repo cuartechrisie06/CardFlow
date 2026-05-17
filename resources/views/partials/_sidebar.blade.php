@@ -46,6 +46,13 @@
         </a>
         <a href="{{ route('explorer.index') }}" class="sidebar-link {{ request()->routeIs('explorer.*') ? 'is-active' : '' }}">Explorer</a>
         <a href="{{ route('stats.index') }}" class="sidebar-link {{ request()->routeIs('stats.*') ? 'is-active' : '' }}">Stats</a>
+        @if($user->isAdmin())
+            <a href="{{ route('admin.index') }}"
+               class="sidebar-link {{ request()->routeIs('admin.*') ? 'is-active' : '' }}"
+               style="border:1px solid rgba(255,255,255,0.2);background:{{ request()->routeIs('admin.*') ? 'rgba(255,255,255,0.18)' : 'rgba(139,69,19,0.22)' }};">
+                Admin Panel
+            </a>
+        @endif
     </nav>
 
     @include('partials.sidebar-collector', ['user' => $user])

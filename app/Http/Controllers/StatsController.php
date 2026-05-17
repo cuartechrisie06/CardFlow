@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Conversation;
+use App\Models\MarketplaceListing;
+use App\Models\Message;
 use App\Models\Trade;
+use App\Models\TradeRequest;
+use App\Models\UserCard;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -16,62 +21,195 @@ class StatsController extends Controller
     {
         $user = $request->user();
 
-        $totalValue = (float) $user->userCards()
-            ->sum(DB::raw('coalesce(user_cards.estimated_value, 0)'));
+        $collectionRows = UserCard::query()
+            ->with('card')
+            ->where('user_id', $user->id)
+            ->get();
 
-        $rarityChartData = DB::table('user_cards')
+        $totalCards = $collectionRows->count();
+        $estimatedTotal = (float) $collectionRows->sum(fn (UserCard $userCard) => (float) ($userCard->estimated_value ?? 0));
+        $marketTotal = (float) $collectionRows->sum(fn (UserCard $userCard) => (float) ($userCard->card?->market_value ?? 0));
+        $totalValue = $estimatedTotal > 0 ? $estimatedTotal : $marketTotal;
+        $totalSpent = (float) $collectionRows->sum(fn (UserCard $userCard) => (float) ($userCard->purchase_price ?? 0));
+        $netChange = $totalValue - $totalSpent;
+        $netChangePercent = $totalSpent > 0 ? round(($netChange / $totalSpent) * 100, 1) : 0;
+        $avgCardValue = $totalCards > 0 ? round($totalValue / $totalCards, 2) : 0;
+        $mostValuableCard = $collectionRows
+            ->sortByDesc(fn (UserCard $userCard) => (float) ($userCard->estimated_value ?? $userCard->card?->market_value ?? 0))
+            ->first();
+        $recentCards = UserCard::query()
+            ->with('card')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        $rarityBreakdown = DB::table('user_cards')
             ->join('cards', 'cards.id', '=', 'user_cards.card_id')
             ->where('user_cards.user_id', $user->id)
-            ->selectRaw("COALESCE(NULLIF(cards.rarity, ''), 'Standard') as label, COUNT(*) as total")
+            ->selectRaw("
+                COALESCE(NULLIF(cards.rarity, ''), 'Standard') as label,
+                COUNT(*) as total,
+                SUM(COALESCE(user_cards.estimated_value, cards.market_value, 0)) as total_value
+            ")
             ->groupBy('label')
             ->orderByDesc('total')
             ->get()
-            ->map(fn ($row) => [
-                'label' => $row->label,
-                'total' => (int) $row->total,
-            ]);
+            ->map(function ($row) {
+                return [
+                    'label' => $row->label,
+                    'rarity' => $row->label,
+                    'count' => (int) $row->total,
+                    'total' => (int) $row->total,
+                    'total_value' => (float) $row->total_value,
+                    'width' => 0,
+                ];
+            });
 
-        $artistChartData = DB::table('user_cards')
+        $rarityMax = max((int) ($rarityBreakdown->max('total') ?? 0), 1);
+        $rarityBreakdown = $rarityBreakdown->map(fn (array $row) => array_merge($row, [
+            'width' => max(12, (int) round(($row['total'] / $rarityMax) * 100)),
+        ]));
+
+        $rarityChartData = $rarityBreakdown->map(fn (array $row) => [
+            'label' => $row['label'],
+            'total' => $row['total'],
+        ]);
+
+        $artistBreakdown = DB::table('user_cards')
             ->join('cards', 'cards.id', '=', 'user_cards.card_id')
             ->where('user_cards.user_id', $user->id)
-            ->selectRaw("COALESCE(NULLIF(cards.artist, ''), 'Unknown Artist') as label, COUNT(*) as total")
-            ->groupBy('label')
+            ->selectRaw("COALESCE(NULLIF(cards.artist, ''), 'Unknown Artist') as artist, COUNT(*) as total")
+            ->groupBy('artist')
             ->orderByDesc('total')
             ->limit(5)
             ->get()
             ->map(fn ($row) => [
-                'label' => $row->label,
+                'artist' => $row->artist,
+                'label' => $row->artist,
+                'count' => (int) $row->total,
                 'total' => (int) $row->total,
             ]);
 
-        $tradeStats = DB::table('trades')
-            ->where('user_id', $user->id)
-            ->selectRaw("
-                COUNT(*) as trade_total,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_total,
-                SUM(CASE WHEN status = 'completed' AND completed_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as completed_this_week
-            ", [now()->startOfWeek(), now()->endOfWeek()])
-            ->first();
+        $artistChartData = $artistBreakdown->map(fn (array $row) => [
+            'label' => $row['label'],
+            'total' => $row['total'],
+        ]);
 
-        $tradeBase = (int) ($tradeStats->trade_total ?? 0);
-        $completedTrades = (int) ($tradeStats->completed_total ?? 0);
-        $completionRate = $tradeBase > 0 ? round(($completedTrades / $tradeBase) * 100) : 0;
-        $successfulTradesThisWeek = (int) ($tradeStats->completed_this_week ?? 0);
+        $albumBreakdown = DB::table('user_cards')
+            ->join('cards', 'cards.id', '=', 'user_cards.card_id')
+            ->where('user_cards.user_id', $user->id)
+            ->whereNotNull('cards.album')
+            ->where('cards.album', '!=', '')
+            ->selectRaw('cards.album as album, COUNT(*) as total')
+            ->groupBy('cards.album')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => [
+                'album' => $row->album,
+                'label' => $row->album,
+                'count' => (int) $row->total,
+                'total' => (int) $row->total,
+            ]);
 
-        $averageTradeScore = $this->buildAverageTradeScore($user->id);
+        $tradeBaseQuery = TradeRequest::query()
+            ->where(function ($query) use ($user) {
+                $query->where('sender_id', $user->id)
+                    ->orWhere('receiver_id', $user->id);
+            });
+        $tradesSent = TradeRequest::where('sender_id', $user->id)->count();
+        $tradesReceived = TradeRequest::where('receiver_id', $user->id)->count();
+        $totalTrades = $tradesSent + $tradesReceived;
+        $completedTrades = (clone $tradeBaseQuery)->where('status', 'completed')->count();
+        $declinedTrades = (clone $tradeBaseQuery)->where('status', 'declined')->count();
+        $pendingTrades = (clone $tradeBaseQuery)->where('status', 'pending')->count();
+        $acceptedTrades = (clone $tradeBaseQuery)->where('status', 'accepted')->count();
+        $cancelledTrades = (clone $tradeBaseQuery)->where('status', 'cancelled')->count();
+        $completionRate = $totalTrades > 0 ? round(($completedTrades / $totalTrades) * 100, 1) : 0;
+        $successfulTradesThisWeek = (clone $tradeBaseQuery)
+            ->where('status', 'completed')
+            ->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
+            ->count();
+        $tradeHistory = (clone $tradeBaseQuery)
+            ->with(['sender', 'receiver', 'listing.card', 'offeredCard'])
+            ->latest('updated_at')
+            ->limit(10)
+            ->get();
+
+        $activeListings = MarketplaceListing::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->count();
+        $soldListings = MarketplaceListing::where('user_id', $user->id)
+            ->where('status', 'sold')
+            ->count();
+        $totalRevenue = (float) MarketplaceListing::query()
+            ->join('user_cards', 'user_cards.id', '=', 'marketplace_listings.user_card_id')
+            ->where('marketplace_listings.user_id', $user->id)
+            ->where('marketplace_listings.status', 'sold')
+            ->sum(DB::raw('coalesce(user_cards.listing_price, user_cards.estimated_value, 0)'));
+        $avgListingPrice = (float) (MarketplaceListing::query()
+            ->join('user_cards', 'user_cards.id', '=', 'marketplace_listings.user_card_id')
+            ->where('marketplace_listings.user_id', $user->id)
+            ->where('marketplace_listings.status', 'active')
+            ->avg(DB::raw('coalesce(user_cards.listing_price, user_cards.estimated_value, 0)')) ?? 0);
+
+        $totalConversations = Conversation::query()
+            ->forUser($user)
+            ->count();
+        $messagesSent = Message::where('sender_id', $user->id)->count();
+        $messagesReceived = Message::where('receiver_id', $user->id)->count();
+        $replyRate = $messagesReceived > 0 ? min(100, (int) round(($messagesSent / $messagesReceived) * 100)) : 0;
+
         $growthChart = $this->buildGrowthChart($user->id);
-        $artistDistribution = $this->buildArtistDistribution($user->id);
-        $rarityBreakdown = $this->buildRarityBreakdown($user->id);
-        $tradeHealth = $this->buildTradeHealth($user->id);
-        $quickExports = $this->buildQuickExports($user->id, $totalValue);
+        $artistDistribution = $this->buildArtistDistributionFromBreakdown($artistBreakdown);
+        $tradeHealth = $this->buildTradeHealthFromRequests(
+            $totalTrades,
+            $completedTrades,
+            $declinedTrades + $cancelledTrades,
+            $replyRate
+        );
+        $quickExports = [
+            'portfolio_cards' => $totalCards,
+            'listed_cards' => $activeListings,
+            'portfolio_value' => round($totalValue),
+            'completion_rate' => $completionRate,
+        ];
 
         return view('stats.index', [
+            'totalCards' => $totalCards,
+            'totalValue' => $totalValue,
+            'totalSpent' => $totalSpent,
+            'netChange' => $netChange,
+            'netChangePercent' => $netChangePercent,
+            'avgCardValue' => $avgCardValue,
+            'mostValuableCard' => $mostValuableCard,
+            'artistBreakdown' => $artistBreakdown,
+            'albumBreakdown' => $albumBreakdown,
+            'recentCards' => $recentCards,
+            'tradesSent' => $tradesSent,
+            'tradesReceived' => $tradesReceived,
+            'completedTrades' => $completedTrades,
+            'declinedTrades' => $declinedTrades,
+            'pendingTrades' => $pendingTrades,
+            'acceptedTrades' => $acceptedTrades,
+            'cancelledTrades' => $cancelledTrades,
+            'completionRate' => $completionRate,
+            'tradeHistory' => $tradeHistory,
+            'activeListings' => $activeListings,
+            'soldListings' => $soldListings,
+            'totalRevenue' => $totalRevenue,
+            'avgListingPrice' => $avgListingPrice,
+            'totalConversations' => $totalConversations,
+            'messagesSent' => $messagesSent,
+            'messagesReceived' => $messagesReceived,
+            'replyRate' => $replyRate,
             'metrics' => [
                 'total_value' => round($totalValue),
                 'completion_rate' => $completionRate,
                 'successful_trades' => $successfulTradesThisWeek,
-                'average_trade_score' => $averageTradeScore,
-                'trade_total' => $tradeBase,
+                'average_trade_score' => $completionRate,
+                'trade_total' => $totalTrades,
             ],
             'rarityChartData' => $rarityChartData,
             'artistChartData' => $artistChartData,
@@ -177,6 +315,20 @@ class StatsController extends Controller
         ];
     }
 
+    protected function buildArtistDistributionFromBreakdown(Collection $artistBreakdown): array
+    {
+        $totalCards = max((int) $artistBreakdown->sum('total'), 1);
+
+        return [
+            'total_cards' => (int) $artistBreakdown->sum('total'),
+            'rows' => $artistBreakdown->map(fn (array $row) => [
+                'label' => $row['label'],
+                'total' => (int) $row['total'],
+                'percentage' => (int) round(($row['total'] / $totalCards) * 100),
+            ]),
+        ];
+    }
+
     protected function buildRarityBreakdown(int $userId): Collection
     {
         $rows = DB::table('user_cards')
@@ -223,6 +375,23 @@ class StatsController extends Controller
         ];
     }
 
+    protected function buildTradeHealthFromRequests(
+        int $totalTrades,
+        int $completedTrades,
+        int $unsuccessfulTrades,
+        int $replyRate
+    ): array {
+        return [
+            'blurb' => $totalTrades > 0
+                ? 'Based on trade requests sent, received, and completed.'
+                : 'No trade activity yet. Start listing or trading cards to build stats.',
+            'avg_reply' => 0,
+            'reply_score' => $replyRate,
+            'completed' => $completedTrades,
+            'disputes' => $unsuccessfulTrades,
+        ];
+    }
+
     protected function buildQuickExports(int $userId, float $totalValue): array
     {
         $userCardStats = DB::table('user_cards')
@@ -255,39 +424,72 @@ class StatsController extends Controller
     }
 
     public function exportPdf(Request $request)
-{
-    $user = $request->user();
+    {
+        $user = $request->user();
 
-    $totalValue = (float) $user->userCards()
-        ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, 0)'));
+        $cardsQuery = $user->userCards();
+        $totalCards = (int) (clone $cardsQuery)->count();
+        $totalValue = (float) (clone $cardsQuery)
+            ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.estimated_value, 0)'));
+        $totalSpent = (float) $user->userCards()
+            ->sum(\Illuminate\Support\Facades\DB::raw('coalesce(user_cards.purchase_price, 0)'));
+        $netChange = $totalValue - $totalSpent;
 
-    $tradeBase = $user->trades()->count();
+        $legacyTradeTotal = $user->trades()->count();
+        $tradeRequestScope = TradeRequest::query()
+            ->where(function ($query) use ($user) {
+                $query->where('sender_id', $user->id)
+                    ->orWhere('receiver_id', $user->id);
+            });
 
-    $completedTrades = $user->trades()
-        ->where('status', 'completed')
-        ->count();
+        $requestTradeTotal = (clone $tradeRequestScope)->count();
+        $tradeBase = $legacyTradeTotal + $requestTradeTotal;
 
-    $completionRate = $tradeBase > 0
-        ? round(($completedTrades / $tradeBase) * 100)
-        : 0;
+        $legacyCompletedTrades = $user->trades()
+            ->where('status', 'completed')
+            ->count();
+        $requestCompletedTrades = (clone $tradeRequestScope)
+            ->where('status', 'completed')
+            ->count();
+        $completedTrades = $legacyCompletedTrades + $requestCompletedTrades;
 
-    $successfulTradesThisWeek = $user->trades()
-        ->where('status', 'completed')
-        ->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
-        ->count();
+        $completionRate = $tradeBase > 0
+            ? round(($completedTrades / $tradeBase) * 100)
+            : 0;
 
-    return view('stats.print', [
-        'user' => $user,
-        'generatedAt' => now(),
-        'metrics' => [
-            'total_value' => round($totalValue),
-            'completion_rate' => $completionRate,
-            'successful_trades' => $successfulTradesThisWeek,
-            'average_trade_score' => 0,
-            'trade_total' => $tradeBase,
-        ],
-    ]);
-}
+        $successfulTradesThisWeek = $user->trades()
+            ->where('status', 'completed')
+            ->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
+            ->count();
+        $successfulTradesThisWeek += (clone $tradeRequestScope)
+            ->where('status', 'completed')
+            ->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
+            ->count();
+
+        $activeListings = MarketplaceListing::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where('is_visible', true)
+            ->count();
+        $averageCardValue = $totalCards > 0 ? round($totalValue / $totalCards) : 0;
+
+        return view('stats.print', [
+            'user' => $user,
+            'generatedAt' => now(),
+            'metrics' => [
+                'total_cards' => $totalCards,
+                'total_value' => round($totalValue),
+                'total_spent' => round($totalSpent),
+                'net_change' => round($netChange),
+                'average_card_value' => $averageCardValue,
+                'completion_rate' => $completionRate,
+                'successful_trades' => $successfulTradesThisWeek,
+                'average_trade_score' => $tradeBase > 0 ? round(($completionRate / 100) * 5, 2) : 0,
+                'completed_trades' => $completedTrades,
+                'trade_total' => $tradeBase,
+                'active_listings' => $activeListings,
+            ],
+        ]);
+    }
 
 public function exportCsv(Request $request): StreamedResponse
 {

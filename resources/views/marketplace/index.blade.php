@@ -19,9 +19,6 @@
                             <input type="search" name="q" value="{{ $filters['search'] }}" placeholder="Search marketplace...">
                         </label>
                         <button type="submit" class="dashboard-search-submit">Search</button>
-                        <a href="{{ route('marketplace.create') }}" class="dashboard-add-card">
-                            Post listing
-                        </a>
                     </form>
                 </header>
 
@@ -136,49 +133,10 @@
                                 <span class="mini-chip">{{ count($wishlistMatchedListingIds) }} match{{ count($wishlistMatchedListingIds) === 1 ? '' : 'es' }}</span>
                             </div>
 
-                            <div class="marketplace-grid">
+                            <div class="listings-grid marketplace-grid">
                                 @foreach ($featuredListings as $item)
                                     @continue(! in_array($item->id, $wishlistMatchedListingIds, true))
-
-                                    @php
-                                        $card = $item->card;
-                                        $ownedCard = $item->userCard;
-                                        $listingTags = collect([
-                                            $ownedCard->is_for_trade ? 'Trade' : null,
-                                            $ownedCard->is_for_sale ? 'Sale' : null,
-                                            $ownedCard->is_public ? 'Public' : null,
-                                            $card->rarity,
-                                        ])->filter()->take(3);
-                                        $photoUrl = $storagePhotoUrl($ownedCard->photo_path);
-                                    @endphp
-                                    <article class="marketplace-item marketplace-item-match">
-                                        <a href="{{ route('marketplace.cards.show', $item) }}" class="marketplace-item-link">
-                                            <div class="marketplace-thumb card-media-ratio {{ $card->thumbnail_style }}">
-                                                <img
-                                                    src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
-                                                    alt="{{ $card->title }}"
-                                                    class="card-media-image"
-                                                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
-                                                >
-                                                <div class="marketplace-tags">
-                                                    <span class="marketplace-match-badge">✦ Matches your wishlist</span>
-                                                    @foreach ($listingTags as $tag)
-                                                        <span class="collection-pill">{{ $tag }}</span>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                            <div class="marketplace-meta">
-                                                <h3>{{ $card->title }}</h3>
-                                                <p>{{ strtoupper($card->artist) }}</p>
-                                                <p>{{ $card->album ?: 'Standalone release' }}</p>
-                                                <p>Owner: <a href="{{ route('marketplace.user', $item->user) }}" class="marketplace-owner-link">{{ $item->user->name }}</a></p>
-                                                <div class="marketplace-meta-footer">
-                                                    <span>{{ $ownedCard->is_for_trade ? 'Looking for trade' : ($ownedCard->is_for_sale ? 'Direct sale available' : 'Public showcase') }}</span>
-                                                    <span class="marketplace-link">{{ $ownedCard->listing_price ? 'PHP '.number_format((float) $ownedCard->listing_price, 0) : 'View listing' }}</span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </article>
+                                    @include('marketplace.partials.listing-card', ['item' => $item, 'isWishlistMatch' => true])
                                 @endforeach
                             </div>
                         </section>
@@ -193,52 +151,15 @@
                             <span class="mini-chip">Updated now</span>
                         </div>
 
-                        <div class="marketplace-grid">
+                        <div class="listings-grid marketplace-grid">
                             @forelse ($featuredListings as $item)
-                                @php
-                                    $card = $item->card;
-                                    $ownedCard = $item->userCard;
-                                    $listingTags = collect([
-                                        $ownedCard->is_for_trade ? 'Trade' : null,
-                                        $ownedCard->is_for_sale ? 'Sale' : null,
-                                        $ownedCard->is_public ? 'Public' : null,
-                                        $card->rarity,
-                                    ])->filter()->take(3);
-                                    $photoUrl = $storagePhotoUrl($ownedCard->photo_path);
-                                @endphp
-                                <article class="marketplace-item {{ in_array($item->id, $wishlistMatchedListingIds, true) ? 'marketplace-item-match' : '' }}">
-                                    <a href="{{ route('marketplace.cards.show', $item) }}" class="marketplace-item-link">
-                                        <div class="marketplace-thumb card-media-ratio {{ $card->thumbnail_style }}">
-                                            <img
-                                                src="{{ $photoUrl ?: asset('images/placeholder-card.png') }}"
-                                                alt="{{ $card->title }}"
-                                                class="card-media-image"
-                                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
-                                            >
-                                            <div class="marketplace-tags">
-                                                @if (in_array($item->id, $wishlistMatchedListingIds, true))
-                                                    <span class="marketplace-match-badge">✦ Matches your wishlist</span>
-                                                @endif
-                                                @foreach ($listingTags as $tag)
-                                                    <span class="collection-pill">{{ $tag }}</span>
-                                                @endforeach
-                                            </div>
-                                        </div>
-                                        <div class="marketplace-meta">
-                                            <h3>{{ $card->title }}</h3>
-                                            <p>{{ strtoupper($card->artist) }}</p>
-                                            <p>{{ $card->album ?: 'Standalone release' }}</p>
-                                            <p>Owner: <a href="{{ route('marketplace.user', $item->user) }}" class="marketplace-owner-link">{{ $item->user->name }}</a></p>
-                                            <div class="marketplace-meta-footer">
-                                                <span>{{ $ownedCard->is_for_trade ? 'Looking for trade' : ($ownedCard->is_for_sale ? 'Direct sale available' : 'Public showcase') }}</span>
-                                                <span class="marketplace-link">{{ $ownedCard->listing_price ? 'PHP '.number_format((float) $ownedCard->listing_price, 0) : 'View listing' }}</span>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </article>
+                                @include('marketplace.partials.listing-card', [
+                                    'item' => $item,
+                                    'isWishlistMatch' => in_array($item->id, $wishlistMatchedListingIds, true),
+                                ])
                             @empty
-                                <div class="collection-empty collection-empty-rich">
-                                    <div class="collection-empty-icon" aria-hidden="true">🛍️</div>
+                                <div class="collection-empty collection-empty-rich listings-grid-empty">
+                                    <div class="collection-empty-icon" aria-hidden="true">+</div>
                                     <h3>No active listings yet.</h3>
                                     <p>List a card from your collection to make it searchable for buyers and wishlist matches.</p>
                                     <a href="{{ route('marketplace.create') }}" class="dashboard-add-card">

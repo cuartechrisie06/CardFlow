@@ -23,6 +23,7 @@ class MessagesController extends Controller
         $conversationsQuery = Conversation::query()
             ->withValidParticipants()
             ->forUser($user)
+            ->whereHas('messages')
             ->withCount([
                 'messages as unread_count' => fn ($query) => $query
                     ->withValidRelations()
@@ -79,6 +80,7 @@ class MessagesController extends Controller
                     'marketplaceListing.user:id,name,username',
                     'marketplaceListing.userCard:id,card_id,photo_path,listing_price,is_for_sale,is_for_trade',
                     'messages' => fn ($query) => $query
+                        ->withTrashed()
                         ->withValidRelations()
                         ->with(['sender:id,name,username,avatar', 'receiver:id,name,username,avatar'])
                         ->oldest('created_at'),

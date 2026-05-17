@@ -8,19 +8,23 @@ use App\Models\MarketplaceListing;
 use App\Models\Trade;
 use App\Models\UserOnboarding;
 use App\Models\UserCard;
+use App\Services\ActivityLogger;
 use App\Services\WishlistMatchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 
 
 class CollectionCardController extends Controller
 {
-    public function __construct(private WishlistMatchService $wishlistMatchService)
-    {
+    public function __construct(
+        private WishlistMatchService $wishlistMatchService,
+        private ActivityLogger $activityLogger
+    ) {
     }
 
     public function create(): View
@@ -80,23 +84,64 @@ class CollectionCardController extends Controller
             'purchase_price' => ['nullable', 'numeric', 'min:0'],
             'acquired_at' => ['nullable', 'date'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'list_on_marketplace' => ['nullable', 'boolean'],
             'is_public' => ['nullable', 'boolean'],
             'is_for_trade' => ['nullable', 'boolean'],
             'is_for_sale' => ['nullable', 'boolean'],
+            'listing_type' => ['nullable', 'in:sale,trade,both'],
             'listing_price' => ['nullable', 'numeric', 'min:0'],
+            'listing_description' => ['nullable', 'string', 'max:1000'],
+            'listing_status' => ['nullable', 'in:active,draft'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $photoPath = $request->hasFile('photo')
             ? $request->file('photo')->store('user-cards', 'public')
             : null;
-        $listingState = UserCard::deriveListingState(
-            $request->boolean('is_public'),
-            $request->boolean('is_for_trade'),
-            $request->boolean('is_for_sale'),
-        );
+        $legacyMarketplaceFlags = $request->boolean('is_public')
+            || $request->boolean('is_for_trade')
+            || $request->boolean('is_for_sale');
+        $usesNewMarketplaceFlow = $request->has('list_on_marketplace') || $request->has('listing_type');
+        $listOnMarketplace = $request->boolean('list_on_marketplace') || $legacyMarketplaceFlags;
+        $listingType = $validated['listing_type']
+            ?? ($request->boolean('is_for_trade') && $request->boolean('is_for_sale')
+                ? 'both'
+                : ($request->boolean('is_for_trade') ? 'trade' : 'sale'));
+        $listingStatus = $validated['listing_status'] ?? 'active';
+        $listForSale = false;
+        $listForTrade = false;
+        $listPrice = null;
 
-        DB::transaction(function () use ($request, $validated, $photoPath, $listingState) {
+        if ($listOnMarketplace) {
+            $listForSale = $usesNewMarketplaceFlow
+                ? in_array($listingType, ['sale', 'both'], true)
+                : $request->boolean('is_for_sale');
+            $listForTrade = $usesNewMarketplaceFlow
+                ? in_array($listingType, ['trade', 'both'], true)
+                : $request->boolean('is_for_trade');
+            $listPrice = $listForSale
+                ? ($validated['listing_price'] ?? $validated['estimated_value'] ?? $validated['market_value'])
+                : null;
+        }
+
+        $listingState = [
+            'is_listed' => $listOnMarketplace,
+            'marketplace_status' => $listOnMarketplace ? $listingStatus : 'draft',
+        ];
+
+        $storedNotes = $validated['notes'] ?? null;
+        $listingDescription = trim((string) ($validated['listing_description'] ?? ''));
+
+        if ($listingDescription !== '') {
+            $storedNotes = $storedNotes
+                ? trim($storedNotes . "\n\nMarketplace: " . $listingDescription)
+                : $listingDescription;
+        }
+
+        $card = null;
+        $userCard = null;
+
+        DB::transaction(function () use ($request, $validated, $photoPath, $listingState, $listOnMarketplace, $listForSale, $listForTrade, $listPrice, $storedNotes, &$card, &$userCard) {
             $card = Card::query()->firstOrCreate(
                 [
                     'artist' => $validated['artist'],
@@ -112,6 +157,10 @@ class CollectionCardController extends Controller
                 ]
             );
 
+            if ($photoPath && Schema::hasColumn('cards', 'photo')) {
+                $card->forceFill(['photo' => $photoPath])->save();
+            }
+
             $userCard = UserCard::query()->create([
                 'user_id' => $request->user()->id,
                 'card_id' => $card->id,
@@ -121,22 +170,34 @@ class CollectionCardController extends Controller
                 'acquired_at' => $validated['acquired_at'] ?? now(),
                 'is_listed' => $listingState['is_listed'],
                 'marketplace_status' => $listingState['marketplace_status'],
-                'is_public' => $request->boolean('is_public'),
-                'is_for_trade' => $request->boolean('is_for_trade'),
-                'is_for_sale' => $request->boolean('is_for_sale'),
-                'listing_price' => $request->boolean('is_for_sale')
-                    ? ($validated['listing_price'] ?? $validated['estimated_value'] ?? $validated['market_value'])
-                    : null,
+                'is_public' => $request->boolean('is_public') || ($listOnMarketplace && $listingState['marketplace_status'] === 'active'),
+                'is_for_trade' => $listForTrade,
+                'is_for_sale' => $listForSale,
+                'listing_price' => $listPrice,
                 'photo_path' => $photoPath,
-                'notes' => $validated['notes'] ?? null,
+                'notes' => $storedNotes,
             ]);
 
-            $this->syncMarketplaceListing($userCard);
+            $this->syncMarketplaceListing($userCard, $listingState['marketplace_status']);
         });
 
         UserOnboarding::query()->updateOrCreate(
             ['user_id' => $request->user()->id],
             ['added_first_card' => true],
+        );
+
+        $this->activityLogger->record(
+            $request->user(),
+            'card_added',
+            'Added a new card',
+            $listOnMarketplace
+                ? 'Added a photocard and listed it on the marketplace.'
+                : 'Added a photocard to the personal collection.',
+            [
+                'card_id' => $card->id,
+                'user_card_id' => $userCard->id,
+                'marketplace_status' => $userCard->marketplace_status,
+            ]
         );
 
         return redirect()->route('collection.index')
@@ -205,9 +266,17 @@ class CollectionCardController extends Controller
                     'released_on' => $currentCard->released_on,
                 ]));
 
+                if ($newPhotoPath && Schema::hasColumn('cards', 'photo')) {
+                    $replacementCard->forceFill(['photo' => $newPhotoPath])->save();
+                }
+
                 $userCard->card()->associate($replacementCard);
             } else {
                 $currentCard->update($cardAttributes);
+
+                if ($newPhotoPath && Schema::hasColumn('cards', 'photo')) {
+                    $currentCard->forceFill(['photo' => $newPhotoPath])->save();
+                }
             }
 
             if ($newPhotoPath && $userCard->photo_path) {
@@ -230,15 +299,29 @@ class CollectionCardController extends Controller
                 'notes' => $validated['notes'] ?? null,
             ]);
 
+            $currentListingStatus = $userCard->marketplace_status ?? 'active';
+
             $userCard->refresh();
-            $this->syncMarketplaceListing($userCard);
+            $this->syncMarketplaceListing($userCard, $currentListingStatus);
         });
+
+        $this->activityLogger->record(
+            $request->user(),
+            'card_updated',
+            'Updated a card',
+            'Updated collection details and marketplace flags.',
+            [
+                'card_id' => $userCard->card_id,
+                'user_card_id' => $userCard->id,
+                'marketplace_status' => $userCard->fresh()->marketplace_status,
+            ]
+        );
 
         return redirect()->route('collection.index')
             ->with('status', 'Card updated successfully.');
     }
 
-    private function syncMarketplaceListing(UserCard $userCard): void
+    private function syncMarketplaceListing(UserCard $userCard, string $listingStatus = 'active'): void
     {
         $shouldBeListed = $userCard->is_public || $userCard->is_for_trade || $userCard->is_for_sale;
 
@@ -253,8 +336,8 @@ class CollectionCardController extends Controller
             [
                 'user_id' => $userCard->user_id,
                 'card_id' => $userCard->card_id,
-                'status' => 'active',
-                'is_visible' => true,
+                'status' => $listingStatus,
+                'is_visible' => $listingStatus === 'active',
             ],
         );
 
@@ -306,6 +389,17 @@ public function destroy(\App\Models\UserCard $userCard)
         $userCard->delete();
     });
 
+    $this->activityLogger->record(
+        request()->user(),
+        'card_deleted',
+        'Deleted a card',
+        'Removed a card from the collection.',
+        [
+            'card_id' => $userCard->card_id,
+            'user_card_id' => $userCard->id,
+        ]
+    );
+
     return redirect()
         ->route('collection.index')
         ->with('status', 'Card deleted successfully.');
@@ -316,10 +410,49 @@ public function destroy(\App\Models\UserCard $userCard)
         $this->authorize('update', $userCard);
 
         DB::transaction(function () use ($userCard) {
-            $userCard->marketplaceListing()?->forceFill([
-                'status' => 'sold',
-                'is_visible' => false,
+            if ($marketplaceListing = $userCard->marketplaceListing) {
+                $marketplaceListing->forceFill([
+                    'status' => 'traded',
+                    'is_visible' => false,
+                ])->save();
+            }
+
+            $userCard->forceFill([
+                'is_public' => false,
+                'is_for_trade' => false,
+                'is_for_sale' => false,
+                'is_listed' => false,
+                'marketplace_status' => 'traded',
             ])->save();
+        });
+
+        $this->activityLogger->record(
+            request()->user(),
+            'card_traded',
+            'Marked a card as traded',
+            'Updated the collection card and cleared marketplace availability.',
+            [
+                'card_id' => $userCard->card_id,
+                'user_card_id' => $userCard->id,
+            ]
+        );
+
+        return redirect()
+            ->route('collection.show', $userCard)
+            ->with('status', 'Card marked as traded.');
+    }
+
+    public function markAsSold(UserCard $userCard): RedirectResponse
+    {
+        $this->authorize('update', $userCard);
+
+        DB::transaction(function () use ($userCard) {
+            if ($marketplaceListing = $userCard->marketplaceListing) {
+                $marketplaceListing->forceFill([
+                    'status' => 'sold',
+                    'is_visible' => false,
+                ])->save();
+            }
 
             $userCard->forceFill([
                 'is_public' => false,
@@ -330,9 +463,20 @@ public function destroy(\App\Models\UserCard $userCard)
             ])->save();
         });
 
+        $this->activityLogger->record(
+            request()->user(),
+            'card_sold',
+            'Marked a card as sold',
+            'Updated the collection card and cleared marketplace availability.',
+            [
+                'card_id' => $userCard->card_id,
+                'user_card_id' => $userCard->id,
+            ]
+        );
+
         return redirect()
             ->route('collection.show', $userCard)
-            ->with('status', 'Card marked as traded.');
+            ->with('status', 'Card marked as sold.');
     }
 
     private function publicStorageUrl(?string $path): ?string

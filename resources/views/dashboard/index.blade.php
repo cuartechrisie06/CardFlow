@@ -182,9 +182,18 @@
                         <div class="status-list">
                             @foreach ($tradeDistribution['rows'] as $row)
                                 <div class="status-row">
-                                    <span>{{ $row['label'] }}</span>
-                                    <div class="status-bar"><i style="width: {{ $row['percentage'] }}%"></i></div>
-                                    <strong>{{ $row['percentage'] }}%</strong>
+                                    <span>
+                                        {{ $row['label'] }}
+                                        @if (($row['count'] ?? 0) > 0)
+                                            <small style="color:#b09070;">({{ $row['count'] }})</small>
+                                        @endif
+                                    </span>
+                                    <div class="status-bar">
+                                        <i style="width: {{ $row['percentage'] }}%; background: {{ $row['color'] ?? '#8B4513' }};"></i>
+                                    </div>
+                                    <strong style="color: {{ $row['percentage'] > 0 ? ($row['color'] ?? '#8B4513') : '#b09070' }};">
+                                        {{ $row['percentage'] }}%
+                                    </strong>
                                 </div>
                             @endforeach
                         </div>
@@ -199,14 +208,34 @@
                             <span class="mini-chip">Top categories</span>
                         </div>
 
+                        @php
+                            $wishlistMatchListings = $wishlistMomentum['matches'] ?? collect();
+                        @endphp
+
                         <div class="activity-chart-panel">
-                            <div class="bar-chart" aria-hidden="true">
-                                @forelse ($wishlistMomentum['bars'] as $bar)
-                                    <div class="bar-chart-item"><i style="height: {{ $bar['height'] }}%"></i><span>{{ $bar['label'] }}</span></div>
-                                @empty
-                                    <div class="empty-state">No wishlist match data yet.</div>
-                                @endforelse
-                            </div>
+                            @if ($wishlistMatchListings->isEmpty())
+                                <div class="empty-state">
+                                    <p>No wishlist match data yet.</p>
+                                    <span>Add cards to your wishlist to see marketplace matches here.</span>
+                                </div>
+                            @else
+                                <div class="wishlist-match-list">
+                                    @foreach ($wishlistMatchListings->take(3) as $listing)
+                                        <a href="{{ route('marketplace.cards.show', $listing) }}" class="wishlist-match-card">
+                                            <img
+                                                src="{{ $listing->card?->photo_url ?: asset('images/placeholder-card.png') }}"
+                                                alt="{{ $listing->card?->title ?? 'Wishlist match' }}"
+                                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                            >
+                                            <div>
+                                                <strong>{{ $listing->card?->title ?? 'Untitled card' }}</strong>
+                                                <span>@{{ $listing->user?->username ?? 'collector' }}</span>
+                                            </div>
+                                            <em>{{ $formatMoney($listing->userCard?->listing_price ?? $listing->card?->market_value ?? 0) }}</em>
+                                        </a>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
 
                         <div class="metric-strip">
@@ -237,7 +266,21 @@
                         <div class="feed-panel">
                             <ul class="activity-list">
                                 @forelse ($activityFeed['items'] as $item)
-                                    <li>
+                                    @php
+                                        $dotColor = match($item['type'] ?? '') {
+                                            'trade_request',
+                                            'new_message',
+                                            'listing_published',
+                                            'listing_created' => '#8B4513',
+                                            'wishlist_match',
+                                            'trade_completed',
+                                            'listing_sold',
+                                            'card_sold',
+                                            'card_traded' => '#2d6a4f',
+                                            default => '#b09070',
+                                        };
+                                    @endphp
+                                    <li style="--activity-dot: {{ $dotColor }};">
                                         <strong>{{ $item['title'] }}</strong>
                                         <span>{{ $item['time'] }}</span>
                                     </li>
@@ -267,7 +310,7 @@
                     <div class="card-topline">
                         <div>
                             <p class="mini-label">Hot cards</p>
-                            <h2>Trending in your circle</h2>
+                            <h2><span class="hot-cards-icon" aria-hidden="true">&#8599;</span> Trending in your circle</h2>
                         </div>
                         <span class="mini-chip">Updated hourly</span>
                     </div>
@@ -275,7 +318,14 @@
                     <div class="market-grid">
                         @foreach ($trendingCards as $card)
                             <article class="market-item">
-                                <div class="market-thumb {{ $card->thumbnail_style }}"></div>
+                                <div class="hot-card-wrapper">
+                                    <img
+                                        src="{{ $card->photo_url ?: asset('images/placeholder-card.png') }}"
+                                        alt="{{ $card->title }}"
+                                        class="hot-card-image"
+                                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                                    >
+                                </div>
                                 <div class="market-meta">
                                     <h3>{{ $card->title }}</h3>
                                     <p>{{ $card->edition ?: $card->album }}</p>

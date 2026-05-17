@@ -58,18 +58,48 @@
         <a href="{{ route('collection.edit', $userCard) }}" class="dashboard-add-card dashboard-add-card-secondary">
             Edit card
         </a>
-        <a href="{{ route('marketplace.create', ['user_card_id' => $userCard->id]) }}" class="dashboard-add-card">
-            Create listing from this card
-        </a>
+        @php
+            $marketplaceListing = $userCard->marketplaceListing;
+        @endphp
+        @if (! $marketplaceListing)
+            <a href="{{ route('marketplace.create', ['user_card_id' => $userCard->id]) }}" class="dashboard-add-card">
+                List on marketplace
+            </a>
+        @else
+            <span class="mini-chip">
+                @if($marketplaceListing->status === 'active')
+                    Listed on marketplace
+                @elseif($marketplaceListing->status === 'draft')
+                    Saved as draft
+                @elseif($marketplaceListing->status === 'sold')
+                    Marked as sold
+                @elseif($marketplaceListing->status === 'traded')
+                    Marked as traded
+                @else
+                    Archived
+                @endif
+            </span>
+        @endif
         <form method="POST" action="{{ route('collection.traded', $userCard) }}" class="dashboard-inline-form">
             @csrf
             @method('PATCH')
             <button
                 type="submit"
                 class="dashboard-search-submit"
-                onclick="return confirm('Mark this card as traded and remove any active marketplace listing?')"
+                onclick="return confirm('Mark this card as traded? This will clear its marketplace flags.')"
             >
                 Mark as traded
+            </button>
+        </form>
+        <form method="POST" action="{{ route('collection.sold', $userCard) }}" class="dashboard-inline-form">
+            @csrf
+            @method('PATCH')
+            <button
+                type="submit"
+                class="dashboard-search-submit"
+                onclick="return confirm('Mark this card as sold? This will clear its marketplace flags.')"
+            >
+                Mark as sold
             </button>
         </form>
     </div>

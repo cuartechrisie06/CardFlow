@@ -75,9 +75,10 @@
     </header>
     <div class="kpop-explorer-header__rule" aria-hidden="true"></div>
 
-    <section class="dashboard-card kpop-explorer-panel">
+    <section class="dashboard-card kpop-explorer-panel explorer-panel">
+        <div class="explorer-content">
         @if (! $catalogMode)
-            <form method="GET" action="{{ route('explorer.index') }}" class="kpop-explorer-search kpop-explorer-search--wide" role="search">
+            <form method="GET" action="{{ route('explorer.index') }}" class="kpop-explorer-search kpop-explorer-search--wide explorer-search-bar" role="search">
                 <label class="kpop-explorer-search__field">
                     <span class="sr-only">Search by name</span>
                     <input
@@ -109,7 +110,7 @@
                 </div>
             </div>
 
-            <div class="filter-chips-row">
+            <div class="filter-chips-row explorer-filters">
                 <span class="filter-chips-label">Filter:</span>
                 <nav class="explorer-filter-chips" aria-label="Quick filters">
                     @foreach ($quickFilters as $value => $label)
@@ -127,6 +128,7 @@
                 </nav>
             </div>
         @endif
+        </div>
 
         @if (! $hasResults)
             <div class="kpop-explorer-empty collection-empty collection-empty-rich" role="status">
@@ -138,6 +140,7 @@
                 <a href="{{ route('explorer.index', ['tab' => $tab]) }}" class="dashboard-add-card">Clear search</a>
             </div>
         @else
+            <div class="explorer-grid-wrapper">
             <div class="kpop-explorer-grid kpop-explorer-grid--catalog">
                 @foreach ($displayResults as $item)
                     @php
@@ -201,7 +204,7 @@
                             <div class="explorer-modal-backdrop" data-explorer-modal-close></div>
 
                             <article class="explorer-modal-card">
-                                <button type="button" class="explorer-modal-close" data-explorer-modal-close aria-label="Close idol profile">×</button>
+                                <button type="button" class="explorer-modal-close" data-explorer-modal-close aria-label="Close idol profile">&times;</button>
 
                                 <div class="explorer-modal-header">
                                     <div class="explorer-modal-avatar">
@@ -280,6 +283,7 @@
                         </article>
                     @endif
                 @endforeach
+            </div>
             </div>
 
             <div class="explorer-pagination">

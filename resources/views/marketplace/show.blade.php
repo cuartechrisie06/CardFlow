@@ -56,27 +56,29 @@
     </x-slot>
 
     <section class="dashboard-card seller-trust-card card-detail-fade" style="--card-detail-delay: 225ms;">
-        @php
-            $proofPhotoUrl = $storagePhotoUrl($listing->proof_photo);
-        @endphp
-
         <div class="seller-trust-header">
-            @if ($owner->avatar_url)
-                <img
-                    src="{{ $owner->avatar_url }}"
-                    alt="{{ $owner->name }} avatar"
-                    class="seller-trust-avatar"
-                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
-                >
-            @else
-                <div class="seller-trust-avatar seller-trust-avatar-fallback" aria-hidden="true">
-                    @initials($owner->name)
-                </div>
-            @endif
+            <a href="{{ route('profile.showcase', $owner) }}" class="seller-avatar-link" aria-label="View {{ $owner->name }} profile">
+                @if ($owner->avatar_url)
+                    <img
+                        src="{{ $owner->avatar_url }}"
+                        alt="{{ $owner->name }} avatar"
+                        class="seller-trust-avatar"
+                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
+                    >
+                @else
+                    <div class="seller-trust-avatar seller-trust-avatar-fallback" aria-hidden="true">
+                        @initials($owner->name)
+                    </div>
+                @endif
+            </a>
 
             <div class="seller-trust-copy">
                 <p class="mini-label">Seller</p>
-                <h3>{{ $owner->name }}</h3>
+                <h3>
+                    <a href="{{ route('profile.showcase', $owner) }}" class="collector-profile-link">
+                        {{ $owner->name }}
+                    </a>
+                </h3>
                 <p>
                     <a href="{{ route('profile.showcase', $owner) }}" class="seller-profile-link">
                         {{ '@'.$owner->username }}
@@ -86,37 +88,34 @@
         </div>
 
         @if ($listing->proof_photo)
-            <section class="proof-status-panel">
-                <div class="proof-status-copy">
-                    <p class="mini-label">Proof of Possession</p>
+            <section style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:{{ $listing->proof_verified ? '#d4edda' : '#f5e6d8' }};border-radius:12px;margin-bottom:16px;border:1px solid {{ $listing->proof_verified ? '#a8d5b5' : '#e8d5c0' }};">
+                <span style="font-size:1.3rem;flex-shrink:0;">
+                    {{ $listing->proof_verified ? '✓' : '...' }}
+                </span>
 
-                    @if ($listing->proof_status === 'verified')
-                        <span class="proof-badge-verified">Proof of Possession Verified</span>
-                    @elseif ($listing->proof_status === 'failed')
-                        <span class="proof-badge-failed">Verification failed - photo may be edited</span>
-                    @else
-                        <span class="proof-badge-pending">Verification in progress</span>
-                    @endif
-
-                    @if (! is_null($listing->proof_score))
-                        <p class="proof-status-score">Confidence score: {{ $listing->proof_score }}/100</p>
-                    @endif
-
-                    <p class="proof-status-help">
-                        Our team reviews proof photos within 24 hours. Verified listings get a badge.
+                <div style="flex:1;min-width:0;">
+                    <p style="font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:{{ $listing->proof_verified ? '#2d6a4f' : '#8B4513' }};margin:0 0 2px;">
+                        {{ $listing->proof_verified ? 'Proof of Possession - Verified' : 'Proof of Possession - Pending' }}
+                    </p>
+                    <p style="font-family:'DM Sans',sans-serif;font-size:0.78rem;color:{{ $listing->proof_verified ? '#2d6a4f' : '#8B6F5E' }};margin:0;">
+                        {{ $listing->proof_verified ? 'Seller has verified physical possession of this card.' : 'Verification is being reviewed.' }}
                     </p>
                 </div>
 
-                @if ($proofPhotoUrl)
-                    <div class="proof-status-preview">
-                        <img
-                            src="{{ $proofPhotoUrl }}"
-                            alt="Proof of possession photo"
-                            class="card-photo-preview"
-                            onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
-                        >
-                    </div>
+                @if ($listing->proof_photo_url)
+                    <a href="{{ $listing->proof_photo_url }}"
+                       target="_blank"
+                       style="font-family:'DM Sans',sans-serif;font-size:0.75rem;color:#8B4513;text-decoration:none;border:1px solid #d4b896;padding:5px 12px;border-radius:20px;flex-shrink:0;background:#ffffff;">
+                        View proof
+                    </a>
                 @endif
+            </section>
+        @else
+            <section style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fdf6f0;border-radius:12px;margin-bottom:16px;border:1px solid #e8d5c0;">
+                <span style="font-size:1.2rem;flex-shrink:0;">!</span>
+                <p style="font-family:'DM Sans',sans-serif;font-size:0.8rem;color:#b09070;margin:0;">
+                    No proof of possession uploaded. Trade with caution.
+                </p>
             </section>
         @endif
 
@@ -139,6 +138,14 @@
         </a>
 
         @if ($viewer->id !== $owner->id)
+            <button
+                type="button"
+                class="dashboard-add-card dashboard-add-card-secondary"
+                onclick="document.getElementById('tradeRequestModal')?.classList.add('is-open')"
+            >
+                Request trade
+            </button>
+
             <form
                 action="{{ route('messages.listings.store', $listing) }}"
                 method="POST"
@@ -151,6 +158,120 @@
             </form>
         @endif
     </div>
+
+    @if ($tradeRequests->isNotEmpty())
+        <section class="dashboard-card trade-request-panel card-detail-fade" style="--card-detail-delay: 275ms;">
+            <div class="card-topline">
+                <div>
+                    <p class="mini-label">Trade Requests</p>
+                    <h2>{{ $listing->user_id === auth()->id() ? 'Requests for this listing' : 'Your request status' }}</h2>
+                </div>
+                <span class="mini-chip">{{ $tradeRequests->count() }} total</span>
+            </div>
+
+            <div class="trade-request-list">
+                @foreach ($tradeRequests as $tradeRequest)
+                    @php
+                        $isReceiver = $tradeRequest->receiver_id === auth()->id();
+                        $otherUser = $isReceiver ? $tradeRequest->sender : $tradeRequest->receiver;
+                    @endphp
+                    <article class="trade-request-item">
+                        <div>
+                            <p class="mini-label">{{ ucfirst($tradeRequest->status) }}</p>
+                            <h3>{{ $tradeRequest->offeredCard?->title ?: 'Offered card' }}</h3>
+                            <p>
+                                {{ $isReceiver ? 'From' : 'To' }}
+                                <strong>{{ '@'.($otherUser?->username ?: $otherUser?->name ?: 'collector') }}</strong>
+                            </p>
+                            @if($tradeRequest->message)
+                                <p class="trade-request-message">{{ $tradeRequest->message }}</p>
+                            @endif
+                        </div>
+
+                        <div class="trade-request-actions">
+                            @if($isReceiver && $tradeRequest->status === 'pending')
+                                <form method="POST" action="{{ route('trade-requests.accept', $tradeRequest) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="dashboard-add-card">Accept</button>
+                                </form>
+                                <form method="POST" action="{{ route('trade-requests.decline', $tradeRequest) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="dashboard-search-submit">Decline</button>
+                                </form>
+                            @elseif($tradeRequest->status === 'accepted')
+                                <form method="POST" action="{{ route('trade-requests.complete', $tradeRequest) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="dashboard-add-card">Mark completed</button>
+                                </form>
+                            @elseif(!$isReceiver && $tradeRequest->status === 'pending')
+                                <form method="POST" action="{{ route('trade-requests.cancel', $tradeRequest) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="dashboard-search-submit">Cancel</button>
+                                </form>
+                            @endif
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if ($viewer->id !== $owner->id)
+        <div class="delete-modal" id="tradeRequestModal" aria-hidden="true">
+            <div class="delete-modal-backdrop" onclick="document.getElementById('tradeRequestModal')?.classList.remove('is-open')"></div>
+
+            <div class="delete-modal-card trade-request-modal-card" role="dialog" aria-modal="true" aria-labelledby="tradeRequestTitle">
+                <div class="delete-modal-icon">T</div>
+
+                <div>
+                    <p class="delete-modal-eyebrow">Trade request</p>
+                    <h2 id="tradeRequestTitle">Offer one of your cards</h2>
+                    <p class="delete-modal-text">
+                        Choose a card from your collection to propose for {{ $userCard->card->title }}.
+                    </p>
+                </div>
+
+                <form method="POST" action="{{ route('trade-requests.store') }}" class="trade-request-form">
+                    @csrf
+                    <input type="hidden" name="listing_id" value="{{ $listing->id }}">
+
+                    <label class="form-field">
+                        <span>Your offered card</span>
+                        <select name="offered_card_id" required>
+                            <option value="">Choose a card...</option>
+                            @foreach($myTradeCards as $myCard)
+                                <option value="{{ $myCard->card_id }}">
+                                    {{ $myCard->card?->title }} - {{ $myCard->card?->artist }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <label class="form-field">
+                        <span>Message</span>
+                        <textarea name="message" rows="4" maxlength="500" placeholder="Add condition notes, inclusions, or trade preferences..."></textarea>
+                    </label>
+
+                    @if($myTradeCards->isEmpty())
+                        <p class="field-help">Add a card to your collection before requesting a trade.</p>
+                    @endif
+
+                    <div class="delete-modal-actions">
+                        <button type="button" class="delete-modal-cancel" onclick="document.getElementById('tradeRequestModal')?.classList.remove('is-open')">
+                            Cancel
+                        </button>
+                        <button type="submit" class="delete-modal-confirm" @disabled($myTradeCards->isEmpty())>
+                            Send trade request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 </x-photocard-detail>
 
 <div class="card-detail-fab-wrap">

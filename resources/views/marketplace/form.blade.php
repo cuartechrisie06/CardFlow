@@ -193,40 +193,149 @@
                     @error('photo') <small class="field-error">{{ $message }}</small> @enderror
                 </div>
 
-                <section class="proof-upload-panel">
-                    <div class="proof-upload-copy">
-                        <p class="mini-label">Proof of Possession</p>
-                        <h3>Proof of Possession</h3>
-                        <p>
-                            Hold your photocard next to a paper with your username
-                            <strong>{{ '@'.auth()->user()->username }}</strong> and today's date
-                            <strong>{{ now()->format('Y-m-d') }}</strong>. Take a clear photo in good lighting.
+                <section class="proof-section" style="margin-top:28px;padding:24px;background:#fdf6f0;border:2px dashed #d4b896;border-radius:16px;">
+                    <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;">
+                        <div style="width:44px;height:44px;background:#f5e6d8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">
+                            &#128737;
+                        </div>
+                        <div>
+                            <p style="font-family:'DM Sans',sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#8B4513;margin:0 0 4px;">
+                                ANTI-SCAM VERIFICATION
+                            </p>
+                            <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:#3d2b1f;margin:0 0 4px;">
+                                Proof of Possession
+                            </h3>
+                            <p style="font-family:'DM Sans',sans-serif;font-size:0.82rem;color:#8B6F5E;margin:0;line-height:1.5;">
+                                Upload a photo of yourself holding the card with a handwritten note showing your username and today's date.
+                                This protects buyers and trade partners from scams.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="background:#ffffff;border-radius:12px;padding:16px;margin-bottom:20px;border:1px solid #e8d5c0;">
+                        <p style="font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;color:#8B4513;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.05em;">
+                            How to take the proof photo
                         </p>
-                        <p class="proof-upload-note">
-                            Listings with verified proof get a "Verified Seller" badge.
-                        </p>
+                        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+                            @foreach([
+                                ['ok', 'Hold the physical card clearly in frame'],
+                                ['ok', 'Show a handwritten paper with @'.auth()->user()->username],
+                                ['ok', 'Include today\'s date: '.now()->format('Y-m-d')],
+                                ['ok', 'Use good lighting with no blur'],
+                                ['no', 'No screenshots or digital images'],
+                                ['no', 'No cropped or edited photos'],
+                            ] as $tip)
+                                <div style="display:flex;gap:8px;align-items:flex-start;">
+                                    <span style="color:{{ $tip[0] === 'ok' ? '#2d6a4f' : '#c0392b' }};font-weight:700;flex-shrink:0;">
+                                        {{ $tip[0] === 'ok' ? '✓' : 'x' }}
+                                    </span>
+                                    <span style="font-family:'DM Sans',sans-serif;font-size:0.78rem;color:#8B6F5E;line-height:1.4;">
+                                        {{ $tip[1] }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
 
                     @if ($listing?->proof_photo)
-                        <div class="proof-upload-preview">
+                        @php
+                            $proofStatusConfig = match($listing->proof_status) {
+                                'verified' => ['label' => 'Verified', 'color' => '#2d6a4f', 'bg' => '#d4edda'],
+                                'failed' => ['label' => 'Failed - reupload', 'color' => '#c0392b', 'bg' => '#f8d7da'],
+                                default => ['label' => 'Pending review', 'color' => '#8B4513', 'bg' => '#f5e6d8'],
+                            };
+                        @endphp
+                        <div style="background:#ffffff;border-radius:12px;padding:14px 16px;margin-bottom:16px;border:1px solid #e8d5c0;display:flex;gap:14px;align-items:center;">
                             <img
-                                src="{{ $storagePhotoUrl($listing->proof_photo) ?: asset('images/placeholder-card.png') }}"
+                                src="{{ $listing->proof_photo_url ?: asset('images/placeholder-card.png') }}"
                                 alt="Current proof photo"
-                                class="card-photo-preview"
+                                style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;"
                                 onerror="this.onerror=null;this.src='{{ asset('images/placeholder-card.png') }}';"
                             >
+                            <div style="flex:1;">
+                                <p style="font-family:'DM Sans',sans-serif;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:#8B4513;margin:0 0 2px;">
+                                    CURRENT PROOF
+                                </p>
+                                <span style="font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;color:{{ $proofStatusConfig['color'] }};background:{{ $proofStatusConfig['bg'] }};padding:3px 10px;border-radius:20px;">
+                                    {{ $proofStatusConfig['label'] }}
+                                </span>
+                            </div>
+                            <a href="{{ $listing->proof_photo_url ?: '#' }}"
+                               target="_blank"
+                               style="font-family:'DM Sans',sans-serif;font-size:0.75rem;color:#8B4513;text-decoration:none;border:1px solid #d4b896;padding:6px 12px;border-radius:20px;flex-shrink:0;">
+                                View
+                            </a>
                         </div>
+
+                        @if(! $listing->proof_verified && $listing->user_id === auth()->id())
+                            <form method="POST" action="{{ route('listings.verify-proof', $listing) }}" style="margin-bottom:16px;">
+                                @csrf
+                                <button type="submit"
+                                        style="font-family:'DM Sans',sans-serif;font-size:0.78rem;color:#2d6a4f;border:1px solid #a8d5b5;background:#d4edda;padding:7px 16px;border-radius:20px;cursor:pointer;">
+                                    Mark proof as verified
+                                </button>
+                            </form>
+                        @endif
                     @endif
 
-                    <div class="form-field proof-upload-field">
-                        <span>Upload proof photo</span>
-                        <label class="profile-upload-control marketplace-upload-control marketplace-upload-control--proof">
-                            <input type="file" name="proof_photo" accept="image/*" data-file-input>
-                            <span class="profile-upload-button">Choose proof</span>
-                            <span class="profile-upload-filename" data-file-name>{{ $listing?->proof_photo ? 'Current proof saved' : 'No proof selected' }}</span>
-                        </label>
-                        @error('proof_photo') <small class="field-error">{{ $message }}</small> @enderror
+                    <div id="proof-upload-area"
+                         style="border:2px dashed #d4b896;border-radius:12px;padding:24px;text-align:center;background:#ffffff;cursor:pointer;transition:border-color 200ms;"
+                         onclick="document.getElementById('proof_photo').click()"
+                         ondragover="event.preventDefault();this.style.borderColor='#8B4513'"
+                         ondragleave="this.style.borderColor='#d4b896'"
+                         ondrop="handleProofDrop(event)">
+                        <input
+                            type="file"
+                            name="proof_photo"
+                            id="proof_photo"
+                            accept="image/jpeg,image/png,image/webp"
+                            style="display:none;"
+                            onchange="previewProof(this)"
+                        >
+
+                        <div id="proof-upload-placeholder">
+                            <div style="font-size:2rem;margin-bottom:8px;">&#128247;</div>
+                            <p style="font-family:'Playfair Display',serif;font-size:0.95rem;color:#3d2b1f;margin:0 0 4px;font-weight:600;">
+                                Click or drag to upload proof photo
+                            </p>
+                            <p style="font-family:'DM Sans',sans-serif;font-size:0.78rem;color:#b09070;margin:0;">
+                                JPEG, PNG or WebP. Max 5MB.
+                            </p>
+                        </div>
+
+                        <div id="proof-preview-area" style="display:none;">
+                            <img id="proof-preview-img"
+                                 src=""
+                                 alt="Selected proof preview"
+                                 style="max-height:160px;border-radius:10px;object-fit:cover;margin-bottom:8px;">
+                            <p id="proof-preview-name"
+                               style="font-family:'DM Sans',sans-serif;font-size:0.8rem;color:#8B4513;margin:0;"></p>
+                            <button type="button"
+                                    onclick="event.stopPropagation();removeProof()"
+                                    style="margin-top:8px;background:none;border:1px solid #d4b896;color:#8B4513;font-family:'DM Sans',sans-serif;font-size:0.75rem;padding:5px 14px;border-radius:20px;cursor:pointer;">
+                                Remove
+                            </button>
+                        </div>
                     </div>
+
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:14px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox"
+                                   name="proof_required"
+                                   id="proof-optional-toggle"
+                                   value="1"
+                                   {{ $listing?->proof_photo ? 'checked' : '' }}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="font-family:'DM Sans',sans-serif;font-size:0.82rem;color:#3d2b1f;">
+                            Show Verified badge on my listing
+                        </span>
+                    </div>
+
+                    <p style="font-family:'DM Sans',sans-serif;font-size:0.75rem;color:#b09070;margin:10px 0 0;line-height:1.5;">
+                        Listings with verified proof get a trust badge and stronger buyer confidence. Verification is optional but strongly recommended.
+                    </p>
+                    @error('proof_photo') <small class="field-error">{{ $message }}</small> @enderror
                 </section>
             </div>
 
@@ -273,6 +382,77 @@
 
 @push('scripts')
 <script>
+function previewProof(input) {
+    if (!input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (!allowedTypes.includes(file.type)) {
+        alert('Please upload a JPEG, PNG, or WebP image.');
+        input.value = '';
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        alert('File too large. Maximum 5MB.');
+        input.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const placeholder = document.getElementById('proof-upload-placeholder');
+        const preview = document.getElementById('proof-preview-area');
+        const image = document.getElementById('proof-preview-img');
+        const filename = document.getElementById('proof-preview-name');
+        const uploadArea = document.getElementById('proof-upload-area');
+
+        if (placeholder) placeholder.style.display = 'none';
+        if (preview) preview.style.display = 'block';
+        if (image) image.src = e.target.result;
+        if (filename) filename.textContent = file.name;
+        if (uploadArea) uploadArea.style.borderColor = '#2d6a4f';
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeProof() {
+    const input = document.getElementById('proof_photo');
+    const placeholder = document.getElementById('proof-upload-placeholder');
+    const preview = document.getElementById('proof-preview-area');
+    const image = document.getElementById('proof-preview-img');
+    const filename = document.getElementById('proof-preview-name');
+    const uploadArea = document.getElementById('proof-upload-area');
+
+    if (input) input.value = '';
+    if (placeholder) placeholder.style.display = 'block';
+    if (preview) preview.style.display = 'none';
+    if (image) image.src = '';
+    if (filename) filename.textContent = '';
+    if (uploadArea) uploadArea.style.borderColor = '#d4b896';
+}
+
+function handleProofDrop(event) {
+    event.preventDefault();
+    event.currentTarget.style.borderColor = '#d4b896';
+
+    const file = event.dataTransfer.files[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Please upload a JPEG, PNG, or WebP image.');
+        return;
+    }
+
+    const input = document.getElementById('proof_photo');
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    input.files = dataTransfer.files;
+    previewProof(input);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const collectionSelect = document.querySelector('#collection_item');
     const manualPhotoInput = document.querySelector('#photo_input');

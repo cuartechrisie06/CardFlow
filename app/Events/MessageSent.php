@@ -86,7 +86,7 @@ class MessageSent implements ShouldBroadcastNow
                     'username' => $message->conversation->userTwo->username,
                 ],
             ],
-            'preview' => $message->body ?: ($message->attachment_name ?: 'Shared media'),
+            'preview' => $message->body ?: ($message->attachment_name ?: ($message->attachment_type === 'video' ? 'Shared a video' : 'Shared a photo')),
             'unread_counts' => $this->unreadCounts,
         ];
     }

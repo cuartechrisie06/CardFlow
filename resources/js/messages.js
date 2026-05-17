@@ -30,6 +30,9 @@ export function initRealtimeMessages() {
     const attachmentInput = app.querySelector('#message-attachment');
     const attachmentPreview = app.querySelector('#attachment-preview');
     const previewContent = app.querySelector('#preview-content');
+    const previewHeading = app.querySelector('#preview-heading');
+    const previewFilename = app.querySelector('#preview-filename');
+    const previewKind = app.querySelector('#preview-kind');
     const lightbox = app.querySelector('#lightbox');
     const lightboxImage = app.querySelector('#lightbox-img');
     const typingIndicator = app.querySelector('[data-typing-indicator]');
@@ -396,6 +399,7 @@ export function initRealtimeMessages() {
     window.removeAttachment = removeAttachment;
     window.openLightbox = openLightbox;
     window.closeLightbox = closeLightbox;
+    window.handleAttachmentBackdrop = handleAttachmentBackdrop;
 
     function handleAttachment(inputEl) {
         if (!attachmentPreview || !previewContent || !inputEl?.files?.length) {
@@ -431,18 +435,24 @@ export function initRealtimeMessages() {
         previewObjectUrl = URL.createObjectURL(file);
 
         previewContent.innerHTML = `
-            <div class="attachment-preview-card">
-                ${
-                    isImage
-                        ? `<img src="${previewObjectUrl}" alt="${escapeHtml(file.name)}" class="message-attachment-preview-media">`
-                        : `<video src="${previewObjectUrl}" class="message-attachment-preview-media" controls playsinline preload="metadata"></video>`
-                }
-                <div class="attachment-preview-meta">
-                    <strong>${escapeHtml(file.name)}</strong>
-                    <span>${isVideo ? 'Video preview' : 'Image preview'}</span>
-                </div>
-            </div>
+            ${
+                isImage
+                    ? `<img src="${previewObjectUrl}" alt="${escapeHtml(file.name)}" class="message-attachment-preview-media">`
+                    : `<video src="${previewObjectUrl}" class="message-attachment-preview-media" controls playsinline preload="metadata"></video>`
+            }
         `;
+
+        if (previewHeading) {
+            previewHeading.textContent = isVideo ? 'Send video' : 'Send photo';
+        }
+
+        if (previewFilename) {
+            previewFilename.textContent = file.name;
+        }
+
+        if (previewKind) {
+            previewKind.textContent = isVideo ? 'Video preview' : 'Image preview';
+        }
 
         attachmentPreview.classList.remove('hidden');
         attachmentPreview.hidden = false;
@@ -460,6 +470,18 @@ export function initRealtimeMessages() {
 
         if (previewContent) {
             previewContent.innerHTML = '';
+        }
+
+        if (previewHeading) {
+            previewHeading.textContent = 'Photo preview';
+        }
+
+        if (previewFilename) {
+            previewFilename.textContent = 'No file selected';
+        }
+
+        if (previewKind) {
+            previewKind.textContent = 'Preview will appear here';
         }
 
         if (previewObjectUrl) {
@@ -485,6 +507,12 @@ export function initRealtimeMessages() {
 
         lightbox.classList.add('hidden');
         document.body.style.overflow = '';
+    }
+
+    function handleAttachmentBackdrop(event) {
+        if (event.target === event.currentTarget) {
+            removeAttachment();
+        }
     }
 }
 

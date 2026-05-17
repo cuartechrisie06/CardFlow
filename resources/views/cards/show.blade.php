@@ -119,9 +119,20 @@
                             <button
                                 type="submit"
                                 class="dashboard-search-submit"
-                                onclick="return confirm('Mark this card as traded and remove any active marketplace listing?')"
+                                onclick="return confirm('Mark this card as traded? This will clear its marketplace flags.')"
                             >
                                 Mark as traded
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('collection.sold', $userCard) }}" class="dashboard-inline-form">
+                            @csrf
+                            @method('PATCH')
+                            <button
+                                type="submit"
+                                class="dashboard-search-submit"
+                                onclick="return confirm('Mark this card as sold? This will clear its marketplace flags.')"
+                            >
+                                Mark as sold
                             </button>
                         </form>
                     </div>

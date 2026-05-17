@@ -117,27 +117,73 @@
                                 <small class="field-help">Upload a photo from your device or take one with your camera.</small>
                                 @error('photo') <small class="field-error">{{ $message }}</small> @enderror
                             </div>
-                        </div>
 
-                        <label class="remember-row create-checkbox">
-                            <input type="checkbox" name="is_public" value="1" @checked(old('is_public'))>
-                            <span>Show this card on your public marketplace profile</span>
-                        </label>
+                            <div class="form-group form-group-wide collection-marketplace-section">
+                                <p class="form-label">Marketplace</p>
+                                <h3 class="form-section-title">List this card right away?</h3>
+                                <p class="form-section-subtitle">You can keep it private now and list it later from your collection.</p>
 
-                        <label class="remember-row create-checkbox">
-                            <input type="checkbox" name="is_for_trade" value="1" @checked(old('is_for_trade'))>
-                            <span>Mark this card as available for trade</span>
-                        </label>
+                                <label class="marketplace-toggle-row">
+                                    <input
+                                        type="checkbox"
+                                        id="list-on-marketplace"
+                                        name="list_on_marketplace"
+                                        value="1"
+                                        @checked(old('list_on_marketplace'))
+                                    >
+                                    <span class="marketplace-toggle-ui" aria-hidden="true"></span>
+                                    <span>Yes, list on marketplace</span>
+                                </label>
 
-                        <label class="remember-row create-checkbox">
-                            <input type="checkbox" name="is_for_sale" value="1" @checked(old('is_for_sale'))>
-                            <span>Mark this card as available for sale</span>
-                        </label>
+                                <div id="marketplace-fields" class="marketplace-fields {{ old('list_on_marketplace') ? '' : 'hidden' }}">
+                                    <div class="form-group">
+                                        <label class="form-label">Listing type</label>
+                                        <div class="marketplace-pill-row">
+                                            <label class="marketplace-radio-pill">
+                                                <input type="radio" name="listing_type" value="sale" @checked(old('listing_type', 'sale') === 'sale')>
+                                                <span>For sale</span>
+                                            </label>
+                                            <label class="marketplace-radio-pill">
+                                                <input type="radio" name="listing_type" value="trade" @checked(old('listing_type') === 'trade')>
+                                                <span>For trade</span>
+                                            </label>
+                                            <label class="marketplace-radio-pill">
+                                                <input type="radio" name="listing_type" value="both" @checked(old('listing_type') === 'both')>
+                                                <span>Sale or trade</span>
+                                            </label>
+                                        </div>
+                                        @error('listing_type') <small class="field-error">{{ $message }}</small> @enderror
+                                    </div>
 
-                        <div class="form-group">
-                            <label class="form-label" for="listing_price">Listing Price</label>
-                            <input id="listing_price" type="number" name="listing_price" class="form-input" value="{{ old('listing_price') }}" min="0" step="0.01" placeholder="1500">
-                            @error('listing_price') <small class="field-error">{{ $message }}</small> @enderror
+                                    <div class="form-group">
+                                        <label class="form-label" for="listing_price">Asking price (PHP)</label>
+                                        <input id="listing_price" type="number" name="listing_price" class="form-input" value="{{ old('listing_price') }}" min="0" step="0.01" placeholder="1500">
+                                        <small class="field-help">If you choose trade only, this can stay blank.</small>
+                                        @error('listing_price') <small class="field-error">{{ $message }}</small> @enderror
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="form-label" for="listing_description">Listing description</label>
+                                        <textarea id="listing_description" name="listing_description" rows="3" class="form-input" placeholder="Condition notes, inclusions, or trade preferences...">{{ old('listing_description') }}</textarea>
+                                        @error('listing_description') <small class="field-error">{{ $message }}</small> @enderror
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="form-label">Publish as</label>
+                                        <div class="marketplace-pill-row">
+                                            <label class="marketplace-radio-pill">
+                                                <input type="radio" name="listing_status" value="active" @checked(old('listing_status', 'active') === 'active')>
+                                                <span>Active now</span>
+                                            </label>
+                                            <label class="marketplace-radio-pill">
+                                                <input type="radio" name="listing_status" value="draft" @checked(old('listing_status') === 'draft')>
+                                                <span>Save as draft</span>
+                                            </label>
+                                        </div>
+                                        @error('listing_status') <small class="field-error">{{ $message }}</small> @enderror
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="create-form-actions">
@@ -151,8 +197,12 @@
 document.addEventListener('DOMContentLoaded', function () {
     const input = document.querySelector('input[name="photo"]');
     const preview = document.querySelector('[data-photo-preview]');
+    const marketplaceToggle = document.getElementById('list-on-marketplace');
 
     if (!input || !preview) {
+        if (marketplaceToggle) {
+            toggleMarketplaceFields(marketplaceToggle);
+        }
         return;
     }
 
@@ -172,8 +222,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
         reader.readAsDataURL(file);
     });
+
+    if (marketplaceToggle) {
+        toggleMarketplaceFields(marketplaceToggle);
+    }
 });
+
+function toggleMarketplaceFields(checkbox) {
+    const fields = document.getElementById('marketplace-fields');
+
+    if (!fields) {
+        return;
+    }
+
+    if (checkbox.checked) {
+        fields.classList.remove('hidden');
+    } else {
+        fields.classList.add('hidden');
+    }
+}
 </script>
 @endpush
 @endsection
-

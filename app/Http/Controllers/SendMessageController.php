@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -82,6 +83,18 @@ class SendMessageController extends Controller
             'sender_id' => $message->sender_id,
         ]);
 
+        app(ActivityLogger::class)->record(
+            $receiver,
+            'new_message',
+            sprintf('@%s sent you a message', $user->username ?: $user->name),
+            trim($message->body) !== '' ? trim($message->body) : 'Sent an attachment.',
+            [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'sender_id' => $user->id,
+            ]
+        );
+
         $unreadCounts = [
             (string) $user->id => 0,
             (string) $receiver->id => Message::query()
@@ -106,5 +119,22 @@ class SendMessageController extends Controller
             'message_id' => $message->id,
             'event' => $event->payload(),
         ]);
+    }
+
+    public function destroy(Request $request, Message $message): RedirectResponse
+    {
+        abort_if($message->sender_id !== $request->user()->id, 403, 'You can only delete your own messages.');
+
+        $conversation = Conversation::query()
+            ->withValidParticipants()
+            ->forUser($request->user())
+            ->findOrFail($message->conversation_id);
+
+        $message->delete();
+        $conversation->touch();
+
+        return redirect()
+            ->route('messages.index', ['conversation' => $conversation->id])
+            ->with('success', 'Message deleted.');
     }
 }

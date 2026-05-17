@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MarketplaceListing;
 use App\Models\Trade;
+use App\Models\TradeRequest;
 use App\Models\User;
 use App\Models\UserCard;
 use App\Models\WishlistItem;
@@ -141,23 +142,17 @@ class ProfileController extends Controller
 
         if ($request->input('remove_avatar') === '1') {
             if ($user->avatar) {
-                $oldPath = storage_path('app/public/avatars/' . basename($user->avatar));
-                if (file_exists($oldPath)) {
-                    unlink($oldPath);
-                }
+                Storage::disk('public')->delete('avatars/' . basename($user->avatar));
                 $user->avatar = null;
             }
         } elseif ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
             if ($user->avatar) {
-                $oldPath = storage_path('app/public/avatars/' . basename($user->avatar));
-                if (file_exists($oldPath)) {
-                    unlink($oldPath);
-                }
+                Storage::disk('public')->delete('avatars/' . basename($user->avatar));
             }
 
             $avatarFile = $request->file('avatar');
             $filename = time() . '_' . $user->id . '.' . $avatarFile->getClientOriginalExtension();
-            $avatarFile->move(storage_path('app/public/avatars'), $filename);
+            $avatarFile->storeAs('avatars', $filename, 'public');
             $user->avatar = $filename;
         }
 
@@ -181,10 +176,24 @@ class ProfileController extends Controller
     {
         $user->loadCount([
             'marketplaceListings as active_listings_count' => fn ($query) => $query->activeVisible(),
-            'trades as completed_trades_count' => fn ($query) => $query->where(function ($nested) {
-                $nested->whereNotNull('completed_at')
-                    ->orWhere('status', 'completed');
-            }),
         ]);
+
+        $legacyCompletedTrades = Trade::query()
+            ->where('user_id', $user->id)
+            ->where(function ($query) {
+                $query->whereNotNull('completed_at')
+                    ->orWhere('status', 'completed');
+            })
+            ->count();
+
+        $completedTradeRequests = TradeRequest::query()
+            ->where(function ($query) use ($user) {
+                $query->where('sender_id', $user->id)
+                    ->orWhere('receiver_id', $user->id);
+            })
+            ->where('status', 'completed')
+            ->count();
+
+        $user->setAttribute('completed_trades_count', $legacyCompletedTrades + $completedTradeRequests);
     }
 }

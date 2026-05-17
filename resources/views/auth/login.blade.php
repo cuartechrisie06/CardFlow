@@ -15,7 +15,7 @@
             if ($authMode === 'signup') {
                 $authMode = 'register';
             }
-        @endphp
+@endphp
         <main class="cardflow-shell">
             <section class="hero-panel">
                 <div class="brand-lockup brand-lockup--logo">
@@ -113,7 +113,17 @@
                             <div class="field-row">
                                 <label class="field-group">
                                     <span>Password</span>
-                                    <input type="password" name="password" placeholder="Enter your password" autocomplete="current-password">
+                                    <div class="password-field-wrap">
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            id="login-password"
+                                            placeholder="Enter your password"
+                                            autocomplete="current-password"
+                                            style="padding-right: 4rem; {{ $errors->login->has('password') ? 'border-color:#c0392b;' : '' }}"
+                                        >
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('login-password', this)">Show</button>
+                                    </div>
                                     @error('password', 'login')
                                         <small class="field-error">{{ $message }}</small>
                                     @enderror
@@ -157,7 +167,16 @@
                                 </label>
                                 <label class="field-group">
                                     <span>Username</span>
-                                    <input type="text" name="username" value="{{ old('username') }}" placeholder="cardkeeper" autocomplete="username">
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        id="register-username"
+                                        value="{{ old('username') }}"
+                                        placeholder="cardkeeper"
+                                        autocomplete="username"
+                                        style="{{ $errors->register->has('username') ? 'border-color:#c0392b;' : '' }}"
+                                    >
+                                    <p id="username-status" class="auth-helper-message" hidden></p>
                                     @error('username', 'register')
                                         <small class="field-error">{{ $message }}</small>
                                     @enderror
@@ -166,7 +185,14 @@
 
                             <label class="field-group">
                                 <span>Email Address</span>
-                                <input type="email" name="email" value="{{ old('email') }}" placeholder="hello@yourbrand.com" autocomplete="email">
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value="{{ old('email') }}"
+                                    placeholder="hello@yourbrand.com"
+                                    autocomplete="email"
+                                    style="{{ $errors->register->has('email') ? 'border-color:#c0392b;' : '' }}"
+                                >
                                 @error('email', 'register')
                                     <small class="field-error">{{ $message }}</small>
                                 @enderror
@@ -175,21 +201,53 @@
                             <div class="field-two-up">
                                 <label class="field-group">
                                     <span>Password</span>
-                                    <input type="password" name="password" placeholder="Create a password" autocomplete="new-password">
+                                    <div class="password-field-wrap">
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            id="register-password"
+                                            placeholder="Create a password"
+                                            autocomplete="new-password"
+                                            style="padding-right: 4rem; {{ $errors->register->has('password') ? 'border-color:#c0392b;' : '' }}"
+                                        >
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('register-password', this)">Show</button>
+                                    </div>
+                                    <div id="password-strength-bar" class="password-strength-bar" hidden>
+                                        <div id="strength-fill" class="password-strength-fill"></div>
+                                    </div>
+                                    <p id="strength-label" class="auth-helper-message" hidden></p>
                                     @error('password', 'register')
                                         <small class="field-error">{{ $message }}</small>
                                     @enderror
                                 </label>
                                 <label class="field-group">
                                     <span>Confirm</span>
-                                    <input type="password" name="password_confirmation" placeholder="Confirm password" autocomplete="new-password">
+                                    <div class="password-field-wrap">
+                                        <input
+                                            type="password"
+                                            name="password_confirmation"
+                                            id="register-password-confirmation"
+                                            placeholder="Confirm password"
+                                            autocomplete="new-password"
+                                            style="padding-right: 4rem; {{ $errors->register->has('password_confirmation') ? 'border-color:#c0392b;' : '' }}"
+                                        >
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('register-password-confirmation', this)">Show</button>
+                                    </div>
+                                    @error('password_confirmation', 'register')
+                                        <small class="field-error">{{ $message }}</small>
+                                    @enderror
                                 </label>
                             </div>
 
                             <div class="form-meta form-meta-stack">
                                 <label class="remember-row">
-                                    <input type="checkbox" name="terms" @checked(old('terms'))>
-                                    <span>I agree to the community guidelines and privacy terms.</span>
+                                    <input type="checkbox" name="terms" id="agree-terms" @checked(old('terms')) required>
+                                    <span>
+                                        I agree to the
+                                        <a href="#" class="auth-terms-link" onclick="openModal('guidelines-modal'); return false;">Community Guidelines</a>
+                                        and
+                                        <a href="#" class="auth-terms-link" onclick="openModal('privacy-modal'); return false;">Privacy Terms</a>.
+                                    </span>
                                 </label>
                                 @error('terms', 'register')
                                     <small class="field-error">{{ $message }}</small>
@@ -210,10 +268,160 @@
                 </div>
             </section>
         </main>
+
+        @php
+            $guidelines = [
+                [
+                    'title' => 'Be honest',
+                    'text' => 'Accurately describe card condition, edition, and inclusions. No misleading photos or descriptions.',
+                ],
+                [
+                    'title' => 'Communicate clearly',
+                    'text' => 'Respond to messages promptly. If you cannot complete a trade, say so early and respectfully.',
+                ],
+                [
+                    'title' => 'No scamming',
+                    'text' => 'Do not accept payment or cards without fulfilling your end of the trade. Scammers will be permanently banned.',
+                ],
+                [
+                    'title' => 'Ship safely',
+                    'text' => 'Package photocards properly with a sleeve and toploader. Share tracking information when available.',
+                ],
+                [
+                    'title' => 'Complete trades',
+                    'text' => 'Mark trades as completed after both parties confirm receipt. This builds your reputation score.',
+                ],
+                [
+                    'title' => 'Respect everyone',
+                    'text' => 'This is a community for all fans. No harassment, discrimination, or hate speech of any kind.',
+                ],
+            ];
+
+            $privacyItems = [
+                [
+                    'title' => 'What we collect',
+                    'text' => 'We collect your name, username, email, and the photocard data you add to your collection. We do not collect payment information.',
+                ],
+                [
+                    'title' => 'How we use it',
+                    'text' => 'Your data powers CardFlow features: collection tracking, marketplace listings, messaging, and wishlist matching.',
+                ],
+                [
+                    'title' => 'What is public',
+                    'text' => 'Your username, profile, public collection, and active listings are visible to other logged-in users. Your email and trade messages are private.',
+                ],
+                [
+                    'title' => 'Your photos',
+                    'text' => 'Photocard images you upload are stored for CardFlow features. We do not sell or share them with advertisers.',
+                ],
+                [
+                    'title' => 'Data deletion',
+                    'text' => 'You can request deletion of your account and associated data from your profile settings.',
+                ],
+                [
+                    'title' => 'No ads, no selling',
+                    'text' => 'CardFlow does not show ads and does not sell your data. Your information stays within the platform.',
+                ],
+            ];
+        @endphp
+
+        <div id="guidelines-modal" class="modal-overlay hidden" onclick="handleModalBackdrop(event)">
+            <div class="modal-box auth-policy-modal" onclick="event.stopPropagation()">
+                <div class="auth-modal-header">
+                    <div>
+                        <p class="auth-modal-kicker">CardFlow</p>
+                        <h2>Community Guidelines</h2>
+                    </div>
+                    <button type="button" class="auth-modal-close" onclick="closeModal('guidelines-modal')" aria-label="Close guidelines">&times;</button>
+                </div>
+
+                <div class="auth-policy-list">
+                    @foreach($guidelines as $item)
+                        <div class="auth-policy-item">
+                            <h3>{{ $item['title'] }}</h3>
+                            <p>{{ $item['text'] }}</p>
+                        </div>
+                    @endforeach
+                </div>
+
+                <button
+                    type="button"
+                    class="auth-modal-action"
+                    onclick="closeModal('guidelines-modal'); document.getElementById('agree-terms').checked = true;"
+                >I understand - Close</button>
+            </div>
+        </div>
+
+        <div id="privacy-modal" class="modal-overlay hidden" onclick="handleModalBackdrop(event)">
+            <div class="modal-box auth-policy-modal" onclick="event.stopPropagation()">
+                <div class="auth-modal-header">
+                    <div>
+                        <p class="auth-modal-kicker">CardFlow</p>
+                        <h2>Privacy Terms</h2>
+                    </div>
+                    <button type="button" class="auth-modal-close" onclick="closeModal('privacy-modal')" aria-label="Close privacy terms">&times;</button>
+                </div>
+
+                <div class="auth-policy-list">
+                    @foreach($privacyItems as $item)
+                        <div class="auth-policy-item">
+                            <h3>{{ $item['title'] }}</h3>
+                            <p>{{ $item['text'] }}</p>
+                        </div>
+                    @endforeach
+                </div>
+
+                <button
+                    type="button"
+                    class="auth-modal-action"
+                    onclick="closeModal('privacy-modal'); document.getElementById('agree-terms').checked = true;"
+                >I agree - Close</button>
+            </div>
+        </div>
 @endsection
 
 @push('scripts')
 <script>
+function togglePassword(fieldId, btn) {
+    const field = document.getElementById(fieldId);
+
+    if (!field) {
+        return;
+    }
+
+    const shouldShow = field.type === 'password';
+    field.type = shouldShow ? 'text' : 'password';
+    btn.textContent = shouldShow ? 'Hide' : 'Show';
+}
+
+function openModal(id) {
+    const modal = document.getElementById(id);
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function handleModalBackdrop(event) {
+    if (event.target === event.currentTarget) {
+        closeModal(event.currentTarget.id);
+    }
+}
+
 function switchTab(tab) {
     const mode = tab === 'register' || tab === 'signup' ? 'register' : 'signin';
     const signin = document.getElementById('form-signin');
@@ -243,5 +451,93 @@ function switchTab(tab) {
 @if ($errors->register->isNotEmpty())
     switchTab('register');
 @endif
+
+const registerPassword = document.getElementById('register-password');
+
+if (registerPassword) {
+    registerPassword.addEventListener('input', function () {
+        const val = this.value;
+        const bar = document.getElementById('password-strength-bar');
+        const fill = document.getElementById('strength-fill');
+        const label = document.getElementById('strength-label');
+
+        if (!bar || !fill || !label) {
+            return;
+        }
+
+        if (!val) {
+            bar.hidden = true;
+            label.hidden = true;
+            return;
+        }
+
+        bar.hidden = false;
+        label.hidden = false;
+
+        let score = 0;
+        if (val.length >= 8) score++;
+        if (val.length >= 12) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+
+        const levels = [
+            { pct: '20%', color: '#c0392b', text: 'Too weak' },
+            { pct: '40%', color: '#e67e22', text: 'Weak' },
+            { pct: '60%', color: '#f39c12', text: 'Fair' },
+            { pct: '80%', color: '#27ae60', text: 'Strong' },
+            { pct: '100%', color: '#2d6a4f', text: 'Very strong' },
+        ];
+        const level = levels[Math.min(score, 4)];
+
+        fill.style.width = level.pct;
+        fill.style.background = level.color;
+        label.textContent = level.text;
+        label.style.color = level.color;
+    });
+}
+
+let usernameTimer;
+const registerUsername = document.getElementById('register-username');
+
+if (registerUsername) {
+    registerUsername.addEventListener('input', function () {
+        const status = document.getElementById('username-status');
+        const val = this.value.trim();
+
+        if (!status) {
+            return;
+        }
+
+        clearTimeout(usernameTimer);
+
+        if (val.length < 3) {
+            status.hidden = true;
+            return;
+        }
+
+        status.hidden = false;
+        status.textContent = 'Checking...';
+        status.style.color = '#b09070';
+
+        usernameTimer = setTimeout(() => {
+            fetch('{{ route('username.check') }}?username=' + encodeURIComponent(val))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.available) {
+                        status.textContent = '@' + val + ' is available';
+                        status.style.color = '#2d6a4f';
+                    } else {
+                        status.textContent = '@' + val + ' is already taken';
+                        status.style.color = '#c0392b';
+                    }
+                })
+                .catch(() => {
+                    status.textContent = 'Could not check username right now.';
+                    status.style.color = '#c0392b';
+                });
+        }, 500);
+    });
+}
 </script>
 @endpush

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Card;
 use App\Models\UserOnboarding;
 use App\Models\WishlistItem;
+use App\Services\ActivityLogger;
 use App\Services\WishlistMatchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -12,8 +13,10 @@ use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
-    public function __construct(private WishlistMatchService $wishlistMatchService)
-    {
+    public function __construct(
+        private WishlistMatchService $wishlistMatchService,
+        private ActivityLogger $activityLogger
+    ) {
     }
 
     public function index(Request $request): View
@@ -104,9 +107,25 @@ class WishlistController extends Controller
             return [$item, $created];
         })();
 
+        $this->wishlistMatchService->markMatchesForWishlistItem($wishlistItem);
+
         UserOnboarding::query()->updateOrCreate(
             ['user_id' => $request->user()->id],
             ['added_wishlist_item' => true],
+        );
+
+        $this->activityLogger->record(
+            $request->user(),
+            $created ? 'wishlist_item_added' : 'wishlist_item_updated',
+            $created ? 'Added a wishlist item' : 'Updated a wishlist item',
+            $created
+                ? 'Added a card to the wishlist and refreshed matching listings.'
+                : 'Updated wishlist priority and target price.',
+            [
+                'card_id' => $card->id,
+                'wishlist_item_id' => $wishlistItem->id,
+                'priority' => $wishlistItem->priority,
+            ]
         );
 
         return redirect()->route('wishlist.index')
@@ -119,7 +138,21 @@ class WishlistController extends Controller
     {
         abort_unless($wishlistItem->user_id === $request->user()->id, 403);
 
+        $cardId = $wishlistItem->card_id;
+        $wishlistItemId = $wishlistItem->id;
+
         $wishlistItem->delete();
+
+        $this->activityLogger->record(
+            $request->user(),
+            'wishlist_item_removed',
+            'Removed a wishlist item',
+            'Removed a card from the wishlist.',
+            [
+                'card_id' => $cardId,
+                'wishlist_item_id' => $wishlistItemId,
+            ]
+        );
 
         return redirect()->route('wishlist.index')
             ->with('status', 'Wishlist item removed.');

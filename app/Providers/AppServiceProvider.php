@@ -58,6 +58,10 @@ class AppServiceProvider extends ServiceProvider
                 return null;
             }
 
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                return $path;
+            }
+
             $normalizedPath = str_replace('\\', '/', $path);
             $normalizedPath = preg_replace('#^.*storage/app/public/#', '', $normalizedPath) ?: $normalizedPath;
             $normalizedPath = preg_replace('#^.*public/storage/#', '', $normalizedPath) ?: $normalizedPath;

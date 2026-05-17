@@ -4,21 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Card;
 use App\Models\MarketplaceListing;
+use App\Models\TradeRequest;
 use App\Models\UserOnboarding;
 use App\Models\UserCard;
+use App\Services\ActivityLogger;
 use App\Services\WishlistMatchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class MarketplaceController extends Controller
 {
-    public function __construct(private WishlistMatchService $wishlistMatchService)
-    {
+    public function __construct(
+        private WishlistMatchService $wishlistMatchService,
+        private ActivityLogger $activityLogger
+    ) {
     }
 
     public function __invoke(Request $request): View
@@ -187,6 +192,18 @@ class MarketplaceController extends Controller
                 ->where('user_id', $request->user()->id)
                 ->findOrFail($validated['user_card_id']);
 
+            $alreadyListed = MarketplaceListing::query()
+                ->where('user_id', $request->user()->id)
+                ->where('user_card_id', $userCard->id)
+                ->whereIn('status', ['active', 'draft'])
+                ->exists();
+
+            if ($alreadyListed) {
+                throw ValidationException::withMessages([
+                    'user_card_id' => 'This card is already listed on the marketplace.',
+                ]);
+            }
+
             $this->persistListingData($userCard, $validated, $request);
 
             $listing = MarketplaceListing::query()->updateOrCreate(
@@ -204,6 +221,18 @@ class MarketplaceController extends Controller
             $this->persistProofData($listing, $request);
             $this->wishlistMatchService->markMatchesForListing($listing);
         });
+
+        $this->activityLogger->record(
+            $request->user(),
+            ($validated['status'] ?? 'draft') === 'active' ? 'listing_published' : 'listing_created',
+            ($validated['status'] ?? 'draft') === 'active' ? 'Listed a card on the marketplace' : 'Created a draft marketplace listing',
+            ($validated['status'] ?? 'draft') === 'active'
+                ? 'Published a card to the marketplace.'
+                : 'Saved a marketplace listing as a draft.',
+            [
+                'user_card_id' => $validated['user_card_id'],
+            ]
+        );
 
         return redirect()
             ->route('marketplace.index', ['filter' => 'my_listings'])
@@ -242,15 +271,32 @@ class MarketplaceController extends Controller
 
             $this->persistListingData($userCard, $validated, $request);
 
+            $newStatus = $validated['status'] ?? 'draft';
+
             $marketplaceListing->forceFill([
                 'card_id' => $userCard->card_id,
-                'status' => $validated['status'] ?? 'draft',
-                'is_visible' => ($validated['status'] ?? 'draft') === 'active',
+                'status' => $newStatus,
+                'is_visible' => $newStatus === 'active',
             ])->save();
 
             $this->persistProofData($marketplaceListing, $request);
             $this->wishlistMatchService->markMatchesForListing($marketplaceListing);
+
+            if (! in_array($newStatus, ['active', 'draft'], true)) {
+                $this->cancelPendingTradeRequests($marketplaceListing);
+            }
         });
+
+        $this->activityLogger->record(
+            $request->user(),
+            'listing_updated',
+            'Updated a marketplace listing',
+            'Adjusted listing details or proof photos.',
+            [
+                'listing_id' => $marketplaceListing->id,
+                'card_id' => $marketplaceListing->card_id,
+            ]
+        );
 
         return redirect()
             ->route('marketplace.index', ['filter' => 'my_listings'])
@@ -278,7 +324,20 @@ class MarketplaceController extends Controller
                 'status' => 'sold',
                 'is_visible' => false,
             ])->save();
+
+            $this->cancelPendingTradeRequests($marketplaceListing);
         });
+
+        $this->activityLogger->record(
+            $request->user(),
+            'listing_sold',
+            'Marked a listing as sold',
+            'Closed a marketplace listing after a sale or trade.',
+            [
+                'listing_id' => $marketplaceListing->id,
+                'card_id' => $marketplaceListing->card_id,
+            ]
+        );
 
         return redirect()
             ->route('marketplace.index', ['filter' => 'my_listings'])
@@ -304,7 +363,20 @@ class MarketplaceController extends Controller
                 'status' => 'archived',
                 'is_visible' => false,
             ])->save();
+
+            $this->cancelPendingTradeRequests($marketplaceListing);
         });
+
+        $this->activityLogger->record(
+            $request->user(),
+            'listing_archived',
+            'Archived a marketplace listing',
+            'Removed a listing from public view.',
+            [
+                'listing_id' => $marketplaceListing->id,
+                'card_id' => $marketplaceListing->card_id,
+            ]
+        );
 
         return redirect()
             ->route('marketplace.index', ['filter' => 'my_listings'])
@@ -333,11 +405,43 @@ class MarketplaceController extends Controller
                 'status' => 'archived',
                 'is_visible' => false,
             ])->save();
+
+            $this->cancelPendingTradeRequests($marketplaceListing);
         });
+
+        $this->activityLogger->record(
+            $request->user(),
+            'listing_deleted',
+            'Removed a marketplace listing',
+            'Deleted a listing from the marketplace.',
+            [
+                'listing_id' => $marketplaceListing->id,
+                'card_id' => $marketplaceListing->card_id,
+            ]
+        );
 
         return redirect()
             ->route('marketplace.index', ['filter' => 'my_listings'])
             ->with('status', 'Listing removed from marketplace.');
+    }
+
+    public function verifyProof(Request $request, MarketplaceListing $marketplaceListing): RedirectResponse
+    {
+        abort_unless($marketplaceListing->user_id === $request->user()->id, 403);
+
+        if (! $marketplaceListing->proof_photo) {
+            return back()->withErrors([
+                'proof_photo' => 'Upload a proof photo before marking it as verified.',
+            ]);
+        }
+
+        $marketplaceListing->forceFill([
+            'proof_verified' => true,
+            'proof_status' => 'verified',
+            'proof_score' => 100,
+        ])->save();
+
+        return back()->with('status', 'Proof marked as verified.');
     }
 
     private function validateListing(Request $request, bool $isCreate): array
@@ -395,6 +499,9 @@ class MarketplaceController extends Controller
             }
 
             $userCard->photo_path = $request->file('photo')->store('user-cards', 'public');
+            if (Schema::hasColumn('cards', 'photo')) {
+                $card->forceFill(['photo' => $userCard->photo_path])->save();
+            }
         }
         $userCard->forceFill([
             'notes' => $validated['description'] ?? null,
@@ -409,20 +516,49 @@ class MarketplaceController extends Controller
 
     private function persistProofData(MarketplaceListing $listing, Request $request): void
     {
-        if (! $request->hasFile('proof_photo')) {
+        if (! $request->hasFile('proof_photo') || ! $request->file('proof_photo')->isValid()) {
             return;
         }
 
-        if ($listing->proof_photo) {
-            Storage::disk('public')->delete($listing->proof_photo);
+        if ($listing->proof_storage_path) {
+            Storage::disk('public')->delete($listing->proof_storage_path);
         }
 
+        $file = $request->file('proof_photo');
+        $filename = time().'_proof_'.$request->user()->id.'.'.$file->getClientOriginalExtension();
+        $file->storeAs('proofs', $filename, 'public');
+
         $listing->forceFill([
-            'proof_photo' => $request->file('proof_photo')->store('proofs', 'public'),
+            'proof_photo' => $filename,
             'proof_verified' => false,
             'proof_status' => 'pending',
             'proof_score' => null,
         ])->save();
+    }
+
+    private function cancelPendingTradeRequests(MarketplaceListing $listing): void
+    {
+        TradeRequest::query()
+            ->where('listing_id', $listing->id)
+            ->where('status', 'pending')
+            ->with('sender')
+            ->get()
+            ->each(function (TradeRequest $tradeRequest) use ($listing) {
+                $tradeRequest->forceFill(['status' => 'cancelled'])->save();
+
+                if ($tradeRequest->sender) {
+                    $this->activityLogger->record(
+                        $tradeRequest->sender,
+                        'trade_cancelled',
+                        'Trade request cancelled',
+                        'The listing is no longer available.',
+                        [
+                            'trade_request_id' => $tradeRequest->id,
+                            'listing_id' => $listing->id,
+                        ]
+                    );
+                }
+            });
     }
 
     private function statusOptions(): array

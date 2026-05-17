@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class MarketplaceListing extends Model
 {
@@ -63,5 +65,46 @@ class MarketplaceListing extends Model
     public function card(): BelongsTo
     {
         return $this->belongsTo(Card::class);
+    }
+
+    public function tradeRequests(): HasMany
+    {
+        return $this->hasMany(TradeRequest::class, 'listing_id');
+    }
+
+    public function getProofStoragePathAttribute(): ?string
+    {
+        if (! $this->proof_photo) {
+            return null;
+        }
+
+        if (str_starts_with($this->proof_photo, 'http://') || str_starts_with($this->proof_photo, 'https://')) {
+            return null;
+        }
+
+        $path = str_replace('\\', '/', $this->proof_photo);
+        $path = preg_replace('#^.*storage/app/public/#', '', $path) ?: $path;
+        $path = preg_replace('#^.*public/storage/#', '', $path) ?: $path;
+        $path = preg_replace('#^/?storage/#', '', $path) ?: $path;
+        $path = ltrim($path, '/');
+
+        return str_starts_with($path, 'proofs/')
+            ? $path
+            : 'proofs/'.$path;
+    }
+
+    public function getProofPhotoUrlAttribute(): ?string
+    {
+        if (! $this->proof_photo) {
+            return null;
+        }
+
+        if (str_starts_with($this->proof_photo, 'http://') || str_starts_with($this->proof_photo, 'https://')) {
+            return $this->proof_photo;
+        }
+
+        return $this->proof_storage_path
+            ? Storage::url($this->proof_storage_path)
+            : null;
     }
 }

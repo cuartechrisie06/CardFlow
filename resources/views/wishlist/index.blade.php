@@ -99,7 +99,9 @@
 
                                             <div class="match-card-info">
                                                 <div class="wishlist-match-meta">
-                                                    <span class="mini-chip">{{ '@'.$owner->username }}</span>
+                                                    <a href="{{ route('profile.showcase', $owner) }}" class="mini-chip collector-profile-chip">
+                                                        {{ '@'.$owner->username }}
+                                                    </a>
                                                     <span class="mini-chip {{ $ownedCard->is_for_trade ? 'wishlist-trade-badge' : '' }}">{{ $ownedCard->is_for_sale ? 'For sale' : ($ownedCard->is_for_trade ? 'Open for trade' : 'Public listing') }}</span>
                                                 </div>
 

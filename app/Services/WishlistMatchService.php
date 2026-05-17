@@ -9,6 +9,10 @@ use Illuminate\Support\Collection;
 
 class WishlistMatchService
 {
+    public function __construct(private ActivityLogger $activityLogger)
+    {
+    }
+
     public function markMatchesForListing(MarketplaceListing $listing): int
     {
         $listing->loadMissing(['card', 'user', 'userCard']);
@@ -24,7 +28,7 @@ class WishlistMatchService
         $matchedCount = 0;
 
         WishlistItem::query()
-            ->with('card')
+            ->with(['card', 'user'])
             ->where('user_id', '!=', $listing->user_id)
             ->chunkById(200, function (Collection $wishlistItems) use ($listing, &$matchedCount) {
                 foreach ($wishlistItems as $wishlistItem) {
@@ -32,8 +36,73 @@ class WishlistMatchService
                         continue;
                     }
 
-                    if ($wishlistItem->matched_at === null) {
+                    $isFreshMatch = $wishlistItem->matched_at === null;
+
+                    if ($isFreshMatch) {
                         $wishlistItem->forceFill(['matched_at' => now()])->save();
+
+                        if ($wishlistItem->user) {
+                            $this->activityLogger->record(
+                                $wishlistItem->user,
+                                'wishlist_match',
+                                sprintf('Match found: %s is listed', $listing->card->title),
+                                sprintf('%s has an active marketplace listing.', $listing->card->artist),
+                                [
+                                    'listing_id' => $listing->id,
+                                    'card_id' => $listing->card_id,
+                                    'wishlist_item_id' => $wishlistItem->id,
+                                ]
+                            );
+                        }
+                    }
+
+                    $matchedCount++;
+                }
+            });
+
+        return $matchedCount;
+    }
+
+    public function markMatchesForWishlistItem(WishlistItem $wishlistItem): int
+    {
+        $wishlistItem->loadMissing('card');
+
+        if (! $wishlistItem->card) {
+            return 0;
+        }
+
+        $matchedCount = 0;
+
+        MarketplaceListing::query()
+            ->with(['card', 'user', 'userCard'])
+            ->activeVisible()
+            ->where('user_id', '!=', $wishlistItem->user_id)
+            ->chunkById(200, function (Collection $listings) use ($wishlistItem, &$matchedCount) {
+                foreach ($listings as $listing) {
+                    if ($this->scoreListingAgainstWishlist($wishlistItem, $listing) <= 0) {
+                        continue;
+                    }
+
+                    $isFreshMatch = $wishlistItem->matched_at === null;
+
+                    if ($isFreshMatch) {
+                        $wishlistItem->forceFill(['matched_at' => now()])->save();
+
+                        $wishlistItem->loadMissing('user');
+
+                        if ($wishlistItem->user) {
+                            $this->activityLogger->record(
+                                $wishlistItem->user,
+                                'wishlist_match',
+                                sprintf('Match found: %s is listed', $listing->card->title),
+                                sprintf('%s has an active marketplace listing.', $listing->card->artist),
+                                [
+                                    'listing_id' => $listing->id,
+                                    'card_id' => $listing->card_id,
+                                    'wishlist_item_id' => $wishlistItem->id,
+                                ]
+                            );
+                        }
                     }
 
                     $matchedCount++;

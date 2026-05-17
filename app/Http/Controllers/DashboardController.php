@@ -4,39 +4,63 @@ namespace App\Http\Controllers;
 
 use App\Models\Activity;
 use App\Models\Card;
+use App\Models\MarketplaceListing;
 use App\Models\Trade;
+use App\Models\TradeRequest;
 use App\Models\UserOnboarding;
 use App\Models\UserCard;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use App\Services\WishlistMatchService;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __construct(private WishlistMatchService $wishlistMatchService)
+    {
+    }
+
+    public function __invoke(Request $request): View|RedirectResponse
     {
         $user = $request->user();
+
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.index');
+        }
+
         $searchQuery = trim((string) $request->string('q'));
+        $wishlistItems = $user->wishlistItems()->with('card')->get();
+        $wishlistMatches = $this->wishlistMatchService->buildMatchesForUser($user, $wishlistItems);
 
         $metrics = [
             'total_cards' => $user->userCards()->count(),
             'collection_value' => (float) $user->userCards()
                 ->sum(DB::raw('coalesce(user_cards.estimated_value, 0)')),
-            'active_trades' => $user->trades()
-                ->whereIn('status', ['pending', 'new_offer', 'in_progress'])
-                ->count(),
-            'wishlist_matches' => $user->wishlistItems()
-                ->whereNotNull('matched_at')
-                ->count(),
+            'active_trades' => TradeRequest::query()
+                ->where(function ($query) use ($user) {
+                    $query->where('sender_id', $user->id)
+                        ->orWhere('receiver_id', $user->id);
+                })
+                ->whereIn('status', ['pending', 'accepted'])
+                ->count()
+                + $user->trades()
+                    ->whereIn('status', ['pending', 'new_offer', 'in_progress'])
+                    ->count(),
+            'wishlist_matches' => max(
+                $wishlistMatches->filter(fn (Collection $matches) => $matches->isNotEmpty())->count(),
+                $wishlistItems->whereNotNull('matched_at')->count()
+            ),
         ];
 
         $onboarding = UserOnboarding::query()->firstOrCreate(['user_id' => $user->id]);
 
         $valueTrend = $this->buildValueTrend($user->id);
         $tradeDistribution = $this->buildTradeDistribution($user->id);
-        $wishlistMomentum = $this->buildWishlistMomentum($user->id);
+        $wishlistMomentum = $this->buildWishlistMomentum($user->id, $wishlistItems, $wishlistMatches);
         $activityFeed = $this->buildActivityFeed($user->id);
         $trendingCards = $this->buildTrendingCards($user->id);
         $searchResults = $this->buildSearchResults($user->id, $searchQuery);
@@ -123,71 +147,110 @@ class DashboardController extends Controller
     private function buildTradeDistribution(int $userId): array
     {
         $statuses = collect([
-            'completed' => 'Completed',
-            'pending' => 'Pending',
-            'new_offer' => 'New offers',
-            'cancelled' => 'Cancelled',
+            'completed' => ['label' => 'Completed', 'color' => '#2d6a4f'],
+            'pending' => ['label' => 'Pending', 'color' => '#8B4513'],
+            'new_offer' => ['label' => 'New offers', 'color' => '#c8956c'],
+            'cancelled' => ['label' => 'Cancelled', 'color' => '#c0392b'],
         ]);
 
-        $counts = DB::table('trades')
-            ->selectRaw('status, count(*) as aggregate')
-            ->where('user_id', $userId)
-            ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
-            ->groupBy('status')
-            ->pluck('aggregate', 'status');
+        $allTrades = TradeRequest::query()
+            ->where(function ($query) use ($userId) {
+                $query->where('sender_id', $userId)
+                    ->orWhere('receiver_id', $userId);
+            })
+            ->get();
 
-        $total = (int) $counts->sum();
+        $legacyTrades = Trade::query()
+            ->where('user_id', $userId)
+            ->get();
+
+        $counts = collect([
+            'completed' => $allTrades->where('status', 'completed')->count()
+                + $legacyTrades->where('status', 'completed')->count(),
+            'pending' => $allTrades->where('status', 'pending')->count()
+                + $legacyTrades->where('status', 'pending')->count(),
+            'new_offer' => $allTrades
+                ->where('receiver_id', $userId)
+                ->where('status', 'pending')
+                ->count()
+                + $legacyTrades->where('status', 'new_offer')->count(),
+            'cancelled' => $allTrades
+                ->whereIn('status', ['declined', 'cancelled'])
+                ->count()
+                + $legacyTrades->where('status', 'cancelled')->count(),
+        ]);
+
+        $total = $allTrades->count() + $legacyTrades->count();
 
         return [
             'total' => $total,
-            'rows' => $statuses->map(function (string $label, string $status) use ($counts, $total) {
+            'rows' => $statuses->map(function (array $meta, string $status) use ($counts, $total) {
                 $count = (int) ($counts[$status] ?? 0);
                 $percentage = $total > 0 ? (int) round(($count / $total) * 100) : 0;
 
                 return [
-                    'label' => $label,
+                    'label' => $meta['label'],
                     'count' => $count,
                     'percentage' => $percentage,
+                    'color' => $meta['color'],
                 ];
             })->values(),
         ];
     }
 
-    private function buildWishlistMomentum(int $userId): array
+    private function buildWishlistMomentum(int $userId, Collection $wishlistItems, Collection $wishlistMatches): array
     {
-        $groups = DB::table('wishlist_items')
-            ->join('cards', 'cards.id', '=', 'wishlist_items.card_id')
-            ->selectRaw('cards.artist as label, count(*) as aggregate')
-            ->where('wishlist_items.user_id', $userId)
-            ->whereNotNull('wishlist_items.matched_at')
-            ->groupBy('cards.artist')
-            ->orderByDesc('aggregate')
-            ->limit(6)
-            ->get();
+        $matchedListings = $wishlistMatches
+            ->flatten(1)
+            ->map(function ($match) {
+                if ($match instanceof MarketplaceListing) {
+                    return $match;
+                }
 
-        $max = max($groups->max('aggregate') ?? 0, 1);
+                if (is_array($match) && ($match['listing'] ?? null) instanceof MarketplaceListing) {
+                    return $match['listing'];
+                }
 
-        $bars = $groups->map(fn ($group) => [
-            'label' => $group->label,
-            'count' => (int) $group->aggregate,
-            'height' => max((int) round(($group->aggregate / $max) * 82), 16),
+                return null;
+            })
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        $groups = $matchedListings
+            ->groupBy(fn ($listing) => trim((string) $listing->card?->artist))
+            ->map(fn (Collection $group, string $artist) => [
+                'label' => $artist !== '' ? $artist : 'Unknown',
+                'count' => $group->count(),
+            ])
+            ->sortByDesc('count')
+            ->take(6)
+            ->values();
+
+        $max = max((int) $groups->max('count'), 1);
+
+        $bars = $groups->map(fn (array $group) => [
+            'label' => $group['label'],
+            'count' => (int) $group['count'],
+            'height' => max((int) round(($group['count'] / $max) * 82), 16),
         ]);
 
-        $freshMatches = DB::table('wishlist_items')
-            ->where('user_id', $userId)
-            ->whereDate('matched_at', today())
+        $freshMatches = $wishlistItems
+            ->filter(fn ($item) => $item->matched_at && $item->matched_at->isToday())
             ->count();
 
-        $averagePrice = DB::table('wishlist_items')
-            ->join('cards', 'cards.id', '=', 'wishlist_items.card_id')
-            ->where('wishlist_items.user_id', $userId)
-            ->whereNotNull('wishlist_items.matched_at')
-            ->avg('cards.market_value');
+        $averagePrice = $matchedListings->avg(fn ($listing) => (float) ($listing->userCard?->listing_price ?? $listing->card?->market_value ?? 0));
 
         return [
             'bars' => $bars,
-            'strongest' => $bars->first()['label'] ?? 'No matches yet',
-            'fresh_matches' => $freshMatches,
+            'matches' => $matchedListings,
+            'strongest' => $matchedListings->first()?->card?->title
+                ?? $bars->first()['label']
+                ?? 'No matches yet',
+            'fresh_matches' => max(
+                $freshMatches,
+                $matchedListings->filter(fn ($listing) => $listing->created_at?->isToday())->count()
+            ),
             'average_price' => round((float) $averagePrice, 2),
         ];
     }
@@ -200,10 +263,9 @@ class DashboardController extends Controller
             ->limit(4)
             ->get()
             ->map(fn (Activity $activity) => [
+                'type' => $activity->type,
                 'title' => $activity->title,
-                'time' => $activity->happened_at->isToday()
-                    ? $activity->happened_at->format('g:i A')
-                    : $activity->happened_at->diffForHumans(),
+                'time' => $activity->happened_at->diffForHumans(),
             ]);
 
         $dailyActions = Activity::query()
@@ -211,16 +273,19 @@ class DashboardController extends Controller
             ->whereDate('happened_at', today())
             ->count();
 
-        $replyStats = DB::table('trades')
-            ->where('user_id', $userId)
-            ->selectRaw("
-                SUM(CASE WHEN status IN ('pending', 'new_offer', 'in_progress', 'completed') THEN 1 ELSE 0 END) as reply_base,
-                SUM(CASE WHEN replied_at IS NOT NULL THEN 1 ELSE 0 END) as reply_count
-            ")
-            ->first();
+        $incomingConversationIds = DB::table('messages')
+            ->where('receiver_id', $userId)
+            ->distinct()
+            ->pluck('conversation_id');
 
-        $replyBase = (int) ($replyStats->reply_base ?? 0);
-        $replyCount = (int) ($replyStats->reply_count ?? 0);
+        $replyBase = $incomingConversationIds->count();
+        $replyCount = $replyBase > 0
+            ? DB::table('messages')
+                ->where('sender_id', $userId)
+                ->whereIn('conversation_id', $incomingConversationIds)
+                ->distinct()
+                ->count('conversation_id')
+            : 0;
         $replyRate = $replyBase > 0 ? (int) round(($replyCount / $replyBase) * 100) : 0;
 
         return [
@@ -232,32 +297,27 @@ class DashboardController extends Controller
 
     private function buildTrendingCards(int $userId): Collection
     {
-        $interestArtists = DB::table('cards')
-            ->selectRaw('cards.artist, count(*) as aggregate')
-            ->join('user_cards', 'user_cards.card_id', '=', 'cards.id')
-            ->where('user_cards.user_id', $userId)
-            ->groupBy('cards.artist')
-            ->unionAll(
-                DB::table('cards')
-                    ->selectRaw('cards.artist, count(*) as aggregate')
-                    ->join('wishlist_items', 'wishlist_items.card_id', '=', 'cards.id')
-                    ->where('wishlist_items.user_id', $userId)
-                    ->groupBy('cards.artist')
-            )
-            ->get()
-            ->groupBy('artist')
-            ->map(fn (Collection $rows) => $rows->sum('aggregate'))
-            ->sortDesc()
-            ->keys()
-            ->take(3);
+        $cardsHavePhotoColumn = Schema::hasColumn('cards', 'photo');
 
-        $query = Card::query()->orderByDesc('trend_score');
+        return Card::query()
+            ->where(function ($query) use ($cardsHavePhotoColumn) {
+                if ($cardsHavePhotoColumn) {
+                    $query->where(function ($cardQuery) {
+                        $cardQuery->whereNotNull('photo')
+                            ->where('photo', '!=', 'photo');
+                    })->orWhereNotNull('official_image_url');
+                } else {
+                    $query->whereNotNull('official_image_url');
+                }
 
-        if ($interestArtists->isNotEmpty()) {
-            $query->whereIn('artist', $interestArtists);
-        }
-
-        return $query->limit(3)->get();
+                $query->orWhereHas('userCards', function ($userCardQuery) {
+                    $userCardQuery->whereNotNull('photo_path');
+                });
+            })
+            ->orderByDesc('trend_score')
+            ->orderBy('artist')
+            ->limit(3)
+            ->get();
     }
 
     private function buildSearchResults(int $userId, string $searchQuery): array

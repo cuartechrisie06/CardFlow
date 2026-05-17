@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'username', 'email', 'password', 'avatar', 'bio', 'location', 'website'])]
+#[Fillable(['name', 'username', 'email', 'password', 'avatar', 'bio', 'location', 'website', 'is_admin'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -23,7 +23,13 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->is_admin === true;
     }
 
     public function userCards(): HasMany
@@ -54,6 +60,16 @@ class User extends Authenticatable
     public function activities(): HasMany
     {
         return $this->hasMany(Activity::class);
+    }
+
+    public function sentTradeRequests(): HasMany
+    {
+        return $this->hasMany(TradeRequest::class, 'sender_id');
+    }
+
+    public function receivedTradeRequests(): HasMany
+    {
+        return $this->hasMany(TradeRequest::class, 'receiver_id');
     }
 
     public function conversationsStarted(): HasMany
@@ -87,16 +103,45 @@ class User extends Authenticatable
             return (int) $this->attributes['completed_trades_count'];
         }
 
-        return (int) $this->trades()
+        $legacyCompleted = (int) $this->trades()
             ->where('status', 'completed')
             ->count();
+
+        $requestCompleted = TradeRequest::query()
+            ->where(function ($query) {
+                $query->where('sender_id', $this->id)
+                    ->orWhere('receiver_id', $this->id);
+            })
+            ->where('status', 'completed')
+            ->count();
+
+        return $legacyCompleted + $requestCompleted;
     }
 
     public function getSellerBadgeAttribute(): ?string
     {
-        return $this->completed_trades_count >= 3
-            ? 'Verified Seller'
-            : null;
+        $completed = $this->completed_trades_count;
+
+        if ($completed <= 0) {
+            return null;
+        }
+
+        $total = TradeRequest::query()
+            ->where(function ($query) {
+                $query->where('sender_id', $this->id)
+                    ->orWhere('receiver_id', $this->id);
+            })
+            ->count() + $this->trades()->count();
+
+        $completionRate = $total > 0 ? round(($completed / $total) * 100) : 0;
+
+        return match (true) {
+            $completionRate >= 90 => 'Top Trader',
+            $completionRate >= 70 => 'Trusted',
+            $completionRate >= 50 => 'Active Trader',
+            $completed >= 3 => 'Verified Seller',
+            default => null,
+        };
     }
 
     public function getAvatarUrlAttribute(): ?string

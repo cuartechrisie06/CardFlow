@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\MarketplaceListing;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,34 +62,24 @@ class StartConversationController extends Controller
             ->all();
 
         [$conversation, $message] = DB::transaction(function () use ($sender, $recipient, $firstUserId, $secondUserId, $validated, $listing) {
-            $pairQuery = Conversation::query()
+            $conversation = Conversation::query()
                 ->withValidParticipants()
-                ->betweenParticipants($firstUserId, $secondUserId);
+                ->betweenParticipants($firstUserId, $secondUserId)
+                ->withCount('messages')
+                ->orderByDesc('messages_count')
+                ->latest('updated_at')
+                ->first();
 
-            if ($listing) {
-                $conversation = (clone $pairQuery)
-                    ->where('marketplace_listing_id', $listing->id)
-                    ->first();
-
-                if (! $conversation) {
-                    $conversation = Conversation::query()->create([
-                        'user_one_id' => $firstUserId,
-                        'user_two_id' => $secondUserId,
-                        'marketplace_listing_id' => $listing->id,
-                    ]);
-                }
-            } else {
-                $conversation = (clone $pairQuery)
-                    ->whereNull('marketplace_listing_id')
-                    ->first();
-
-                if (! $conversation) {
-                    $conversation = Conversation::query()->create([
-                        'user_one_id' => $firstUserId,
-                        'user_two_id' => $secondUserId,
-                        'marketplace_listing_id' => null,
-                    ]);
-                }
+            if (! $conversation) {
+                $conversation = Conversation::query()->create([
+                    'user_one_id' => $firstUserId,
+                    'user_two_id' => $secondUserId,
+                    'marketplace_listing_id' => $listing?->id,
+                ]);
+            } elseif ($listing && ! $conversation->marketplace_listing_id) {
+                $conversation->forceFill([
+                    'marketplace_listing_id' => $listing->id,
+                ])->save();
             }
 
             $message = Message::query()->create([
@@ -116,6 +107,19 @@ class StartConversationController extends Controller
         $event = new MessageSent($message, $unreadCounts);
 
         broadcast($event);
+
+        app(ActivityLogger::class)->record(
+            $recipient,
+            'new_message',
+            sprintf('@%s sent you a message', $sender->username ?: $sender->name),
+            trim($message->body),
+            [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'sender_id' => $sender->id,
+                'listing_id' => $listing?->id,
+            ]
+        );
 
         if ($request->expectsJson()) {
             return response()->json([
