@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Card;
+use App\Models\AdminAction;
 use App\Models\MarketplaceListing;
 use App\Models\TradeRequest;
 use App\Models\User;
@@ -43,7 +44,7 @@ class AdminController extends Controller
             ->latest()
             ->paginate(20);
 
-        return view('admin.users', compact('users'));
+        return view('admin.users.index', compact('users'));
     }
 
     public function toggleAdmin(User $user): RedirectResponse
@@ -55,6 +56,7 @@ class AdminController extends Controller
         }
 
         $user->forceFill(['is_admin' => ! $user->is_admin])->save();
+        AdminAction::log('promote_user', $user, '@'.$user->username, 'Updated admin status for @'.$user->username);
 
         return back()->with('status', $user->name.' admin status updated.');
     }
@@ -67,6 +69,7 @@ class AdminController extends Controller
             ]);
         }
 
+        AdminAction::log('delete_user', $user, '@'.$user->username, 'Deleted user @'.$user->username);
         $user->delete();
 
         return back()->with('status', 'User deleted successfully.');
@@ -78,11 +81,12 @@ class AdminController extends Controller
             ->latest()
             ->paginate(20);
 
-        return view('admin.listings', compact('listings'));
+        return view('admin.listings.index', compact('listings'));
     }
 
     public function deleteListing(MarketplaceListing $marketplaceListing): RedirectResponse
     {
+        AdminAction::log('delete_listing', $marketplaceListing, $marketplaceListing->card?->title ?? 'Listing', 'Deleted listing '.($marketplaceListing->card?->title ?? '#'.$marketplaceListing->id));
         $marketplaceListing->delete();
 
         return back()->with('status', 'Listing removed.');
@@ -94,7 +98,9 @@ class AdminController extends Controller
             'proof_verified' => true,
             'proof_status' => 'verified',
             'proof_score' => 100,
+            'proof_of_ownership' => 'verified',
         ])->save();
+        AdminAction::log('verify_proof', $marketplaceListing, $marketplaceListing->card?->title ?? 'Listing', 'Verified proof for '.($marketplaceListing->card?->title ?? 'listing'));
 
         return back()->with('status', 'Proof verified for: '.($marketplaceListing->card?->title ?? 'listing'));
     }
@@ -105,11 +111,15 @@ class AdminController extends Controller
             ->latest()
             ->paginate(20);
 
-        return view('admin.trades', compact('trades'));
+        return view('admin.trades.index', compact('trades'));
     }
 
     public function reports(): View
     {
-        return view('admin.reports');
+        return view('admin.moderation.index', [
+            'reports' => collect(),
+            'resolved' => collect(),
+            'pendingCount' => 0,
+        ]);
     }
 }

@@ -105,6 +105,48 @@ class WishlistMarketplaceMatchTest extends TestCase
             ->assertSeeText('No live matches yet');
     }
 
+    public function test_same_artist_with_different_title_does_not_match_wishlist(): void
+    {
+        $viewer = User::factory()->create();
+        $seller = User::factory()->create(['username' => 'enhypen_seller']);
+
+        $wantedCard = Card::factory()->create([
+            'artist' => 'ENHYPEN',
+            'title' => 'Jungwon - Kalpa Ver.',
+            'album' => 'Romance: Untold',
+        ]);
+
+        $listedCard = Card::factory()->create([
+            'artist' => 'ENHYPEN',
+            'title' => 'Sunoo - Charybdis Holo',
+            'album' => 'Dimension: Dilemma',
+        ]);
+
+        $userCard = UserCard::factory()->for($seller)->for($listedCard)->listed([
+            'is_public' => true,
+            'is_for_trade' => true,
+            'listing_price' => 2200,
+        ])->create();
+
+        MarketplaceListing::factory()->create([
+            'user_id' => $seller->id,
+            'user_card_id' => $userCard->id,
+            'card_id' => $listedCard->id,
+        ]);
+
+        WishlistItem::factory()->for($viewer)->for($wantedCard)->create([
+            'priority' => 'medium',
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('wishlist.index'))
+            ->assertOk()
+            ->assertSeeText('Jungwon - Kalpa Ver.')
+            ->assertSeeText('No match yet')
+            ->assertDontSeeText('Sunoo - Charybdis Holo')
+            ->assertDontSeeText('@enhypen_seller');
+    }
+
     public function test_users_own_cards_do_not_appear_as_matches(): void
     {
         $viewer = User::factory()->create(['username' => 'collector_self']);

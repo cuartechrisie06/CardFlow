@@ -25,6 +25,7 @@ class MarketplaceListing extends Model
         'proof_verified',
         'proof_status',
         'proof_score',
+        'proof_of_ownership',
     ];
 
     protected function casts(): array

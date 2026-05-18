@@ -15,7 +15,7 @@ class AuthDashboardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_redirects_to_dashboard_and_authenticates_user(): void
+    public function test_registration_redirects_to_onboarding_and_authenticates_user(): void
     {
         $response = $this->post('/register', [
             'name' => 'Chrisie Noreen Cuarte',
@@ -26,11 +26,13 @@ class AuthDashboardTest extends TestCase
             'terms' => '1',
         ]);
 
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect('/welcome');
         $this->assertAuthenticated();
         $this->assertDatabaseHas('users', [
             'email' => 'chrissie@example.com',
             'username' => 'cuarte_chrisie',
+            'onboarding_completed' => false,
+            'onboarding_step' => 0,
         ]);
     }
 

@@ -1,0 +1,9 @@
+@extends('layouts.admin')
+@section('title','Catalog Cards')
+@section('content')
+<header class="dashboard-header"><div><p class="dashboard-kicker">Admin Panel</p><h1>Catalog cards</h1><p class="dashboard-intro">Master list of cards users can list from.</p></div><div class="dashboard-actions"><a href="{{ route('admin.catalog.create') }}" class="dashboard-add-card">+ Add catalog card</a></div></header>
+<form method="GET" class="dashboard-actions" style="padding:0 1rem;"><label class="dashboard-search"><input type="search" name="q" value="{{ request('q') }}" placeholder="Search catalog cards..."></label></form>
+<div style="display:flex;gap:.5rem;padding:0 1rem;flex-wrap:wrap;">@foreach([''=>'All','Album'=>'Album','Lucky draw'=>'Lucky draw','Broadcast'=>'Broadcast','Season\'s greetings'=>'Season\'s greetings'] as $value=>$label)<a class="mini-chip" style="text-decoration:none;" href="{{ route('admin.catalog.index', array_filter(['type'=>$value])) }}">{{ $label }}</a>@endforeach</div>
+<section class="dashboard-card market-card"><div class="market-grid">@foreach($cards as $card)<article class="market-item"><div class="hot-card-wrapper"><img class="hot-card-image" src="{{ $card->photo_url ?: asset('images/placeholder-card.png') }}"></div><div class="market-meta"><h3>{{ $card->title }}</h3><p>{{ $card->artist }}</p><div><span class="mini-chip">{{ $card->variant_type ?: 'Card' }}</span><strong>{{ $card->album }}</strong></div><div style="display:flex;gap:8px;"><a class="mini-chip" href="{{ route('admin.catalog.edit',$card) }}" style="text-decoration:none;">Edit</a><form method="POST" action="{{ route('admin.catalog.destroy',$card) }}">@csrf @method('DELETE')<button class="mini-chip" style="border:1px solid rgba(163,45,45,.3);color:#A32D2D;">Archive</button></form></div></div></article>@endforeach</div></section>
+<div style="margin:16px;">{{ $cards->links() }}</div>
+@endsection

@@ -57,6 +57,27 @@
                         @endif
                     @endauth
 
+                    @php
+                        $announcement = \App\Models\Setting::get('announcement_message');
+                        $isAnnouncementActive = \App\Models\Setting::get('announcement_active') === '1';
+                        $isAnnouncementDismissible = \App\Models\Setting::get('announcement_dismissible') === '1';
+                    @endphp
+
+                    @if($isAnnouncementActive && $announcement)
+                        <div class="announcement-banner" id="announcement-banner">
+                            <p>{{ $announcement }}</p>
+                            @if($isAnnouncementDismissible)
+                                <button type="button" onclick="document.getElementById('announcement-banner').style.display='none'; localStorage.setItem('cf_banner_dismissed', '1');">x</button>
+                                <script>
+                                    if (localStorage.getItem('cf_banner_dismissed')) {
+                                        const banner = document.getElementById('announcement-banner');
+                                        if (banner) banner.style.display = 'none';
+                                    }
+                                </script>
+                            @endif
+                        </div>
+                    @endif
+
                     @if ($errors->any())
                         <div class="auth-errors">
                             <ul>

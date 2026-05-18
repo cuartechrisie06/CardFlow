@@ -1,0 +1,14 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class AdminUserNote extends Model
+{
+    protected $fillable = [
+        'admin_id',
+        'user_id',
+        'note',
+    ];
+}

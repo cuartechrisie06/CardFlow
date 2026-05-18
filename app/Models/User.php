@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'username', 'email', 'password', 'avatar', 'bio', 'location', 'website', 'is_admin'])]
+#[Fillable(['name', 'username', 'email', 'password', 'avatar', 'bio', 'location', 'website', 'is_admin', 'onboarding_completed', 'onboarding_step', 'suspended_at', 'last_login_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -24,6 +24,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'onboarding_completed' => 'boolean',
+            'onboarding_step' => 'integer',
+            'suspended_at' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
     }
 

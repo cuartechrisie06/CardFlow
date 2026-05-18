@@ -57,6 +57,9 @@ class DashboardController extends Controller
         ];
 
         $onboarding = UserOnboarding::query()->firstOrCreate(['user_id' => $user->id]);
+        $visitCount = (int) session('dashboard_visits', 0);
+        session(['dashboard_visits' => $visitCount + 1]);
+        $showOnboardingBanner = ! $user->onboarding_completed && $visitCount < 3;
 
         $valueTrend = $this->buildValueTrend($user->id);
         $tradeDistribution = $this->buildTradeDistribution($user->id);
@@ -74,7 +77,8 @@ class DashboardController extends Controller
             'trendingCards',
             'searchResults',
             'searchQuery',
-            'onboarding'
+            'onboarding',
+            'showOnboardingBanner'
         ));
     }
 

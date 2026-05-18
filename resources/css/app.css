@@ -1273,6 +1273,32 @@ body.dashboard-body {
     margin: 0;
 }
 
+.announcement-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 1rem;
+    padding: 10px 24px;
+    border-bottom: 0.5px solid rgba(92, 61, 46, 0.2);
+    border-radius: 1rem;
+    background: #ede3d5;
+    color: #3d2b1f;
+    font-size: 13px;
+}
+
+.announcement-banner p {
+    margin: 0;
+}
+
+.announcement-banner button {
+    border: 0;
+    background: transparent;
+    color: #8B4513;
+    cursor: pointer;
+    font: inherit;
+}
+
 .stats-grid,
 .dashboard-grid,
 .market-grid {

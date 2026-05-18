@@ -169,6 +169,14 @@ class WishlistMatchService
         $wishlistRarity = $this->normalize($wishlistCard->rarity);
         $listedRarity = $this->normalize($listedCard->rarity);
 
+        $sameCard = $wishlistCard->id === $listedCard->id;
+        $titleMatches = $wishlistTitle !== ''
+            && ($wishlistTitle === $listedTitle || $this->isPhraseMatch($wishlistTitle, $listedTitle));
+
+        if (! $sameCard && ! $titleMatches) {
+            return 0;
+        }
+
         if ($wishlistArtist !== '' && $wishlistArtist === $listedArtist) {
             $score += 50;
         } elseif ($this->isPartialMatch($wishlistArtist, $listedArtist)) {
@@ -201,7 +209,7 @@ class WishlistMatchService
         $listedTokens = $this->tokens($listedTitle.' '.$listedArtist.' '.$listedAlbum.' '.$listedEdition);
         $score += count(array_intersect($wishlistTokens, $listedTokens)) * 8;
 
-        return $score >= 30 ? $score : 0;
+        return $score;
     }
 
     private function normalize(?string $value): string
@@ -231,5 +239,15 @@ class WishlistMatchService
         return str_contains($left, $right)
             || str_contains($right, $left)
             || count(array_intersect($this->tokens($left), $this->tokens($right))) > 0;
+    }
+
+    private function isPhraseMatch(string $left, string $right): bool
+    {
+        if ($left === '' || $right === '') {
+            return false;
+        }
+
+        return str_contains($left, $right)
+            || str_contains($right, $left);
     }
 }

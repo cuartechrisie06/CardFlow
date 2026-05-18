@@ -4,6 +4,14 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Admin\AdminAuthController;
+use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
+use App\Http\Controllers\Admin\CatalogController as AdminCatalogController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ModerationController as AdminModerationController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\TradeController as AdminTradeController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\CardController;
 use App\Http\Controllers\CollectionCardController;
 use App\Http\Controllers\CollectionController;
@@ -16,6 +24,7 @@ use App\Http\Controllers\MarketplaceCardController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagesController;
 use App\Http\Controllers\OpenMarketplaceConversationController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProofVerificationController;
 use App\Http\Controllers\PublicCollectionController;
@@ -57,6 +66,14 @@ Route::prefix('admin')
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::prefix('welcome')
+        ->name('onboarding.')
+        ->group(function () {
+            Route::get('/', [OnboardingController::class, 'start'])->name('start');
+            Route::get('/step/{step}', [OnboardingController::class, 'step'])->name('step');
+            Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
+            Route::post('/skip', [OnboardingController::class, 'skip'])->name('skip');
+        });
     Route::get('/stats', StatsController::class)->name('stats.index');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -114,13 +131,29 @@ Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', 'admin'])
     ->group(function () {
-        Route::get('/', [AdminController::class, 'index'])->name('index');
+        Route::get('/', AdminDashboardController::class)->name('index');
+        Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile');
         Route::get('/users', [AdminController::class, 'users'])->name('users');
+        Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+        Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
+        Route::post('/users/{user}/restore', [AdminUserController::class, 'restore'])->name('users.restore');
+        Route::post('/users/{user}/note', [AdminUserController::class, 'saveNote'])->name('users.note');
         Route::patch('/users/{user}/toggle-admin', [AdminController::class, 'toggleAdmin'])->name('users.toggle-admin');
         Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('users.delete');
         Route::get('/listings', [AdminController::class, 'listings'])->name('listings');
         Route::delete('/listings/{marketplaceListing}', [AdminController::class, 'deleteListing'])->name('listings.delete');
         Route::patch('/listings/{marketplaceListing}/verify-proof', [AdminController::class, 'verifyProof'])->name('listings.verify-proof');
-        Route::get('/trades', [AdminController::class, 'trades'])->name('trades');
-        Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
+        Route::get('/trades', [AdminTradeController::class, 'index'])->name('trades');
+        Route::get('/moderation', [AdminModerationController::class, 'index'])->name('moderation');
+        Route::get('/moderation/proof', [AdminModerationController::class, 'proof'])->name('moderation.proof');
+        Route::post('/moderation/proof/{listing}/verify', [AdminModerationController::class, 'verifyProof'])->name('moderation.proof.verify');
+        Route::post('/moderation/proof/{listing}/request', [AdminModerationController::class, 'requestProof'])->name('moderation.proof.request');
+        Route::get('/analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
+        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings');
+        Route::post('/settings', [AdminSettingsController::class, 'update'])->name('settings.update');
+        Route::resource('/catalog', AdminCatalogController::class)
+            ->parameters(['catalog' => 'card'])
+            ->names('catalog')
+            ->except(['show']);
+        Route::get('/reports', fn () => redirect()->route('admin.moderation'))->name('reports');
     });

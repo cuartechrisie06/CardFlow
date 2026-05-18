@@ -26,6 +26,32 @@
                     </form>
                 </header>
 
+                @if($showOnboardingBanner ?? false)
+                    <div style="background:linear-gradient(135deg,#f5e6d8,#fdf6f0);border:1px solid #e8d5c0;border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+                        <span style="font-size:1.15rem;color:#8B4513;font-weight:800;">Tour</span>
+                        <div style="flex:1;">
+                            <p style="font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:700;color:#3d2b1f;margin:0 0 2px;">
+                                New to CardFlow?
+                            </p>
+                            <p style="font-family:'DM Sans',sans-serif;font-size:0.8rem;color:#8B6F5E;margin:0;">
+                                Take the quick tour to learn collection tracking, marketplace listings, wishlist matches, messages, and Explorer.
+                            </p>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-shrink:0;">
+                            <a href="{{ route('onboarding.start') }}"
+                               style="font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:600;background:#8B4513;color:#ffffff;padding:8px 16px;border-radius:20px;text-decoration:none;">
+                                Start tour
+                            </a>
+                            <form method="POST" action="{{ route('onboarding.skip') }}">
+                                @csrf
+                                <button type="submit" style="font-family:'DM Sans',sans-serif;font-size:0.8rem;background:transparent;border:1px solid #d4b896;color:#8B4513;padding:8px 16px;border-radius:20px;cursor:pointer;">
+                                    Dismiss
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endif
+
                 @if (!empty($searchQuery))
                     <section class="dashboard-card search-results-card">
                         <div class="card-topline">
@@ -229,7 +255,7 @@
                                             >
                                             <div>
                                                 <strong>{{ $listing->card?->title ?? 'Untitled card' }}</strong>
-                                                <span>@{{ $listing->user?->username ?? 'collector' }}</span>
+                                                <span>{{ '@'.($listing->user?->username ?? 'collector') }}</span>
                                             </div>
                                             <em>{{ $formatMoney($listing->userCard?->listing_price ?? $listing->card?->market_value ?? 0) }}</em>
                                         </a>

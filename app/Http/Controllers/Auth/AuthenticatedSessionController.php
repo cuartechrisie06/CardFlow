@@ -32,6 +32,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->user()->forceFill(['last_login_at' => now()])->save();
 
         if ($request->user()->isAdmin()) {
             return redirect()->route('admin.index')

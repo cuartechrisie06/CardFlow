@@ -79,4 +79,30 @@ class AdminDashboardTest extends TestCase
             'password' => 'password-secret',
         ])->assertRedirect(route('admin.index'));
     }
+
+    public function test_admin_section_pages_render_with_dashboard_design(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+        ]);
+
+        foreach ([
+            route('admin.users') => 'Users',
+            route('admin.listings') => 'Listings',
+            route('admin.trades') => 'Trades',
+            route('admin.moderation') => 'Moderation',
+            route('admin.analytics') => 'Analytics',
+            route('admin.settings') => 'Settings',
+            route('admin.profile') => 'My Profile',
+            route('admin.moderation.proof') => 'Proof queue',
+            route('admin.catalog.index') => 'Catalog cards',
+            route('admin.catalog.create') => 'Add catalog card',
+        ] as $url => $title) {
+            $this->actingAs($admin)
+                ->get($url)
+                ->assertOk()
+                ->assertSee('dashboard-sidebar')
+                ->assertSee($title);
+        }
+    }
 }
