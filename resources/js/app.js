@@ -1,6 +1,3 @@
-import './bootstrap';
-import { initRealtimeMessages } from './messages';
-
 const authCard = document.querySelector('[data-auth-card]');
 const accountMenus = Array.from(document.querySelectorAll('[data-account-menu]'));
 const fileInputs = Array.from(document.querySelectorAll('[data-file-input]'));
@@ -37,11 +34,16 @@ if (authCard) {
     const triggers = Array.from(authCard.querySelectorAll('[data-auth-trigger]'));
     const links = Array.from(authCard.querySelectorAll('[data-auth-link]'));
     const panes = Array.from(authCard.querySelectorAll('[data-auth-pane]'));
+    const passwordToggles = Array.from(authCard.querySelectorAll('[data-password-toggle]'));
+    const registerPassword = authCard.querySelector('#register-password');
+    const registerUsername = authCard.querySelector('#register-username');
+    const usernameCheckUrl = authCard.dataset.usernameCheckUrl;
 
     const setMode = (mode) => {
         triggers.forEach((trigger) => {
             const active = trigger.dataset.authTrigger === mode;
             trigger.classList.toggle('is-active', active);
+            trigger.classList.toggle('active', active);
             trigger.setAttribute('aria-selected', active ? 'true' : 'false');
         });
 
@@ -65,7 +67,161 @@ if (authCard) {
             setMode(link.dataset.authLink);
         });
     });
+
+    passwordToggles.forEach((button) => {
+        button.addEventListener('click', () => {
+            const field = document.getElementById(button.dataset.passwordTarget);
+
+            if (!field) {
+                return;
+            }
+
+            const shouldShow = field.type === 'password';
+            field.type = shouldShow ? 'text' : 'password';
+            button.textContent = shouldShow ? 'Hide' : 'Show';
+        });
+    });
+
+    if (registerPassword) {
+        registerPassword.addEventListener('input', function () {
+            const val = this.value;
+            const bar = document.getElementById('password-strength-bar');
+            const fill = document.getElementById('strength-fill');
+            const label = document.getElementById('strength-label');
+
+            if (!bar || !fill || !label) {
+                return;
+            }
+
+            if (!val) {
+                bar.hidden = true;
+                label.hidden = true;
+                return;
+            }
+
+            bar.hidden = false;
+            label.hidden = false;
+
+            let score = 0;
+            if (val.length >= 8) score++;
+            if (val.length >= 12) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+
+            const levels = [
+                { pct: '20%', color: '#c0392b', text: 'Too weak' },
+                { pct: '40%', color: '#e67e22', text: 'Weak' },
+                { pct: '60%', color: '#f39c12', text: 'Fair' },
+                { pct: '80%', color: '#27ae60', text: 'Strong' },
+                { pct: '100%', color: '#2d6a4f', text: 'Very strong' },
+            ];
+            const level = levels[Math.min(score, 4)];
+
+            fill.style.width = level.pct;
+            fill.style.background = level.color;
+            label.textContent = level.text;
+            label.style.color = level.color;
+        });
+    }
+
+    if (registerUsername && usernameCheckUrl) {
+        let usernameTimer;
+
+        registerUsername.addEventListener('input', function () {
+            const status = document.getElementById('username-status');
+            const val = this.value.trim();
+
+            if (!status) {
+                return;
+            }
+
+            clearTimeout(usernameTimer);
+
+            if (val.length < 3) {
+                status.hidden = true;
+                return;
+            }
+
+            status.hidden = false;
+            status.textContent = 'Checking...';
+            status.style.color = '#b09070';
+
+            usernameTimer = setTimeout(() => {
+                const url = new URL(usernameCheckUrl, window.location.origin);
+                url.searchParams.set('username', val);
+
+                fetch(url)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.available) {
+                            status.textContent = `@${val} is available`;
+                            status.style.color = '#2d6a4f';
+                        } else {
+                            status.textContent = `@${val} is already taken`;
+                            status.style.color = '#c0392b';
+                        }
+                    })
+                    .catch(() => {
+                        status.textContent = 'Could not check username right now.';
+                        status.style.color = '#c0392b';
+                    });
+            }, 500);
+        });
+    }
 }
+
+const openModal = (id) => {
+    const modal = document.getElementById(id);
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+
+const closeModal = (id) => {
+    const modal = document.getElementById(id);
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+};
+
+document.querySelectorAll('[data-modal-open]').forEach((trigger) => {
+    trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        openModal(trigger.dataset.modalOpen);
+    });
+});
+
+document.querySelectorAll('[data-modal-close]').forEach((trigger) => {
+    trigger.addEventListener('click', () => closeModal(trigger.dataset.modalClose));
+});
+
+document.querySelectorAll('[data-modal-accept]').forEach((trigger) => {
+    trigger.addEventListener('click', () => {
+        closeModal(trigger.dataset.modalAccept);
+
+        const terms = document.getElementById('agree-terms');
+        if (terms) {
+            terms.checked = true;
+        }
+    });
+});
+
+document.querySelectorAll('[data-modal-backdrop]').forEach((modal) => {
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal(modal.id);
+        }
+    });
+});
 
 fileInputs.forEach((input) => {
     input.addEventListener('change', () => {
@@ -175,7 +331,40 @@ if (accountMenus.length > 0) {
     });
 }
 
-initRealtimeMessages();
+import('./bootstrap')
+    .then(() => import('./messages'))
+    .then(({ initRealtimeMessages }) => initRealtimeMessages())
+    .catch((error) => {
+        console.warn('Realtime features could not be started.', error);
+    });
+
+const toast = document.getElementById('toast-success');
+if (toast) {
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.5s';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+
+const announcement = document.getElementById('announcement-banner');
+if (announcement) {
+    if (localStorage.getItem('cf_banner_dismissed')) {
+        announcement.style.display = 'none';
+    }
+
+    announcement.querySelector('[data-announcement-dismiss]')?.addEventListener('click', () => {
+        announcement.style.display = 'none';
+        localStorage.setItem('cf_banner_dismissed', '1');
+    });
+}
+
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        window.location.href = '/login';
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('deleteListingModal');
     const form = document.getElementById('deleteListingForm');

@@ -21,13 +21,10 @@ class Activity extends Model
         'meta',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'happened_at' => 'datetime',
-            'meta' => 'array',
-        ];
-    }
+    protected $casts = [
+        'happened_at' => 'datetime',
+        'meta' => 'array',
+    ];
 
     public function user(): BelongsTo
     {

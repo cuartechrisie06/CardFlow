@@ -158,4 +158,26 @@ class AuthDashboardTest extends TestCase
                     && $metrics['wishlist_matches'] === 1;
             });
     }
+
+    public function test_dashboard_daily_actions_counts_recent_activity_from_last_24_hours(): void
+    {
+        $user = User::factory()->create();
+
+        Activity::factory()->for($user)->create([
+            'title' => 'Recent trade request',
+            'happened_at' => now()->subHours(9),
+        ]);
+
+        Activity::factory()->for($user)->create([
+            'title' => 'Older card update',
+            'happened_at' => now()->subHours(30),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertViewHas('activityFeed', function (array $activityFeed) {
+                return $activityFeed['daily_actions'] === 1;
+            });
+    }
 }

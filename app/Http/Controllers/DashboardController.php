@@ -274,7 +274,7 @@ class DashboardController extends Controller
 
         $dailyActions = Activity::query()
             ->where('user_id', $userId)
-            ->whereDate('happened_at', today())
+            ->where('happened_at', '>=', now()->subDay())
             ->count();
 
         $incomingConversationIds = DB::table('messages')

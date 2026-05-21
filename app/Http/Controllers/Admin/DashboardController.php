@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\MarketplaceListing;
 use App\Models\Message;
 use App\Models\Trade;
@@ -198,6 +199,21 @@ class DashboardController extends Controller
 
     private function buildPlatformActivity(): Collection
     {
+        $activityItems = Activity::query()
+            ->latest('happened_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (Activity $activity) => [
+                'title' => $activity->title,
+                'time' => $activity->happened_at->diffForHumans(),
+                'created_at' => $activity->happened_at,
+                'type' => $this->platformActivityType($activity->type),
+            ]);
+
+        if ($activityItems->isNotEmpty()) {
+            return $activityItems->take(6)->values();
+        }
+
         $users = User::latest()
             ->limit(5)
             ->get()
@@ -239,12 +255,20 @@ class DashboardController extends Controller
             ->values();
     }
 
+    private function platformActivityType(string $activityType): string
+    {
+        return match ($activityType) {
+            'listing_created', 'listing_published', 'listing_updated', 'listing_sold', 'listing_archived', 'listing_deleted' => 'listing',
+            'trade_request_sent', 'trade_request_accepted', 'trade_request_rejected', 'trade_request_canceled', 'trade_completed' => 'trade',
+            'wishlist_added', 'wishlist_matched' => 'user',
+            default => 'activity',
+        };
+    }
+
     private function dailyActions(): int
     {
-        return User::whereDate('created_at', today())->count()
-            + MarketplaceListing::whereDate('created_at', today())->count()
-            + TradeRequest::whereDate('updated_at', today())->count()
-            + Message::whereDate('created_at', today())->count();
+        return Activity::query()->whereDate('happened_at', today())->count()
+            + User::whereDate('created_at', today())->count();
     }
 
     private function moderationRate(): int

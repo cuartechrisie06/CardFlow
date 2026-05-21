@@ -67,13 +67,7 @@
                         <div class="announcement-banner" id="announcement-banner">
                             <p>{{ $announcement }}</p>
                             @if($isAnnouncementDismissible)
-                                <button type="button" onclick="document.getElementById('announcement-banner').style.display='none'; localStorage.setItem('cf_banner_dismissed', '1');">x</button>
-                                <script>
-                                    if (localStorage.getItem('cf_banner_dismissed')) {
-                                        const banner = document.getElementById('announcement-banner');
-                                        if (banner) banner.style.display = 'none';
-                                    }
-                                </script>
+                                <button type="button" data-announcement-dismiss>x</button>
                             @endif
                         </div>
                     @endif
@@ -97,26 +91,9 @@
             <div class="toast-notification" id="toast-success">
                 ✓ {{ session('status') }}
             </div>
-            <script>
-                setTimeout(() => {
-                    const toast = document.getElementById('toast-success');
-                    if (toast) {
-                        toast.style.opacity = '0';
-                        toast.style.transition = 'opacity 0.5s';
-                        setTimeout(() => toast.remove(), 500);
-                    }
-                }, 3000);
-            </script>
         @endif
 
         @stack('modals')
         @stack('scripts')
-        <script>
-            window.addEventListener('pageshow', function (e) {
-                if (e.persisted) {
-                    window.location.href = '/login';
-                }
-            });
-        </script>
     </body>
 </html>

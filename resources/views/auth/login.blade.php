@@ -19,7 +19,7 @@
         <main class="cardflow-shell">
             <section class="hero-panel">
                 <div class="brand-lockup brand-lockup--logo">
-                    <img src="{{ asset('images/cardflow-logo.svg') }}" alt="CardFlow" class="brand-logo">
+                    <img src="/images/cardflow-logo.svg" alt="CardFlow" class="brand-logo">
                 </div>
                 <div class="brand-chip">Photocard Trading</div>
 
@@ -71,28 +71,26 @@
             </section>
 
             <section class="auth-panel" aria-label="Account access panel">
-                <div class="auth-card" data-auth-card>
+                <div class="auth-card" data-auth-card data-username-check-url="{{ route('username.check', [], false) }}">
                     <div class="auth-switch" role="tablist" aria-label="Authentication mode">
-                        <button
-                            type="button"
+                        <a
+                            href="{{ route('login', [], false) }}"
                             id="tab-signin"
                             role="tab"
                             class="auth-switch-button auth-tab {{ $authMode === 'signin' ? 'is-active active' : '' }}"
                             data-auth-trigger="signin"
-                            onclick="switchTab('signin')"
                             aria-controls="form-signin"
                             aria-selected="{{ $authMode === 'signin' ? 'true' : 'false' }}"
-                        >Sign in</button>
-                        <button
-                            type="button"
+                        >Sign in</a>
+                        <a
+                            href="{{ route('register.create', [], false) }}"
                             id="tab-register"
                             role="tab"
                             class="auth-switch-button auth-tab {{ $authMode === 'register' ? 'is-active active' : '' }}"
                             data-auth-trigger="register"
-                            onclick="switchTab('register')"
                             aria-controls="form-register"
                             aria-selected="{{ $authMode === 'register' ? 'true' : 'false' }}"
-                        >Create account</button>
+                        >Create account</a>
                     </div>
 
                     <div id="form-signin" class="auth-pane {{ $authMode === 'signin' ? 'is-active' : '' }}" data-auth-pane="signin" @if ($authMode !== 'signin') hidden @endif>
@@ -100,7 +98,7 @@
                         <h2>Welcome back</h2>
                         <p class="auth-copy">Use your account details to continue your collection journey.</p>
 
-                        <form class="auth-form" action="{{ url('/login') }}" method="POST">
+                        <form class="auth-form" action="/login" method="POST">
                             @csrf
                             <label class="field-group">
                                 <span>Email Address</span>
@@ -122,13 +120,13 @@
                                             autocomplete="current-password"
                                             style="padding-right: 4rem; {{ $errors->login->has('password') ? 'border-color:#c0392b;' : '' }}"
                                         >
-                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('login-password', this)">Show</button>
+                                        <button type="button" class="password-toggle-btn" data-password-toggle data-password-target="login-password">Show</button>
                                     </div>
                                     @error('password', 'login')
                                         <small class="field-error">{{ $message }}</small>
                                     @enderror
                                 </label>
-                                <a href="{{ route('password.request') }}" class="field-link">Forgot?</a>
+                                <a href="{{ route('password.request', [], false) }}" class="field-link">Forgot?</a>
                             </div>
 
                             <div class="form-meta">
@@ -144,9 +142,9 @@
 
                         <p class="signup-copy">
                             Need a new account?
-                            <button type="button" class="field-link auth-inline-link auth-inline-button" data-auth-link="register" onclick="switchTab('register')">
+                            <a href="{{ route('register.create', [], false) }}" class="field-link auth-inline-link auth-inline-button" data-auth-link="register">
                                 Create one
-                            </button>
+                            </a>
                         </p>
                     </div>
 
@@ -155,7 +153,7 @@
                         <h2>Start your trading hub</h2>
                         <p class="auth-copy">Set up your profile and start organizing your photocard collection in one place.</p>
 
-                        <form class="auth-form" action="{{ route('register.store') }}" method="POST">
+                        <form class="auth-form" action="{{ route('register.store', [], false) }}" method="POST">
                             @csrf
                             <div class="field-two-up">
                                 <label class="field-group">
@@ -210,7 +208,7 @@
                                             autocomplete="new-password"
                                             style="padding-right: 4rem; {{ $errors->register->has('password') ? 'border-color:#c0392b;' : '' }}"
                                         >
-                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('register-password', this)">Show</button>
+                                        <button type="button" class="password-toggle-btn" data-password-toggle data-password-target="register-password">Show</button>
                                     </div>
                                     <div id="password-strength-bar" class="password-strength-bar" hidden>
                                         <div id="strength-fill" class="password-strength-fill"></div>
@@ -231,7 +229,7 @@
                                             autocomplete="new-password"
                                             style="padding-right: 4rem; {{ $errors->register->has('password_confirmation') ? 'border-color:#c0392b;' : '' }}"
                                         >
-                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('register-password-confirmation', this)">Show</button>
+                                        <button type="button" class="password-toggle-btn" data-password-toggle data-password-target="register-password-confirmation">Show</button>
                                     </div>
                                     @error('password_confirmation', 'register')
                                         <small class="field-error">{{ $message }}</small>
@@ -244,9 +242,9 @@
                                     <input type="checkbox" name="terms" id="agree-terms" @checked(old('terms')) required>
                                     <span>
                                         I agree to the
-                                        <a href="#" class="auth-terms-link" onclick="openModal('guidelines-modal'); return false;">Community Guidelines</a>
+                                        <a href="#guidelines-modal" class="auth-terms-link" data-modal-open="guidelines-modal">Community Guidelines</a>
                                         and
-                                        <a href="#" class="auth-terms-link" onclick="openModal('privacy-modal'); return false;">Privacy Terms</a>.
+                                        <a href="#privacy-modal" class="auth-terms-link" data-modal-open="privacy-modal">Privacy Terms</a>.
                                     </span>
                                 </label>
                                 @error('terms', 'register')
@@ -260,9 +258,9 @@
 
                         <p class="signup-copy">
                             Already have an account?
-                            <button type="button" class="field-link auth-inline-link auth-inline-button" data-auth-link="signin" onclick="switchTab('signin')">
+                            <a href="{{ route('login', [], false) }}" class="field-link auth-inline-link auth-inline-button" data-auth-link="signin">
                                 Sign in
-                            </button>
+                            </a>
                         </p>
                     </div>
                 </div>
@@ -325,14 +323,14 @@
             ];
         @endphp
 
-        <div id="guidelines-modal" class="modal-overlay hidden" onclick="handleModalBackdrop(event)">
-            <div class="modal-box auth-policy-modal" onclick="event.stopPropagation()">
+        <div id="guidelines-modal" class="modal-overlay hidden" data-modal-backdrop>
+            <div class="modal-box auth-policy-modal">
                 <div class="auth-modal-header">
                     <div>
                         <p class="auth-modal-kicker">CardFlow</p>
                         <h2>Community Guidelines</h2>
                     </div>
-                    <button type="button" class="auth-modal-close" onclick="closeModal('guidelines-modal')" aria-label="Close guidelines">&times;</button>
+                    <button type="button" class="auth-modal-close" data-modal-close="guidelines-modal" aria-label="Close guidelines">&times;</button>
                 </div>
 
                 <div class="auth-policy-list">
@@ -347,19 +345,19 @@
                 <button
                     type="button"
                     class="auth-modal-action"
-                    onclick="closeModal('guidelines-modal'); document.getElementById('agree-terms').checked = true;"
+                    data-modal-accept="guidelines-modal"
                 >I understand - Close</button>
             </div>
         </div>
 
-        <div id="privacy-modal" class="modal-overlay hidden" onclick="handleModalBackdrop(event)">
-            <div class="modal-box auth-policy-modal" onclick="event.stopPropagation()">
+        <div id="privacy-modal" class="modal-overlay hidden" data-modal-backdrop>
+            <div class="modal-box auth-policy-modal">
                 <div class="auth-modal-header">
                     <div>
                         <p class="auth-modal-kicker">CardFlow</p>
                         <h2>Privacy Terms</h2>
                     </div>
-                    <button type="button" class="auth-modal-close" onclick="closeModal('privacy-modal')" aria-label="Close privacy terms">&times;</button>
+                    <button type="button" class="auth-modal-close" data-modal-close="privacy-modal" aria-label="Close privacy terms">&times;</button>
                 </div>
 
                 <div class="auth-policy-list">
@@ -374,170 +372,8 @@
                 <button
                     type="button"
                     class="auth-modal-action"
-                    onclick="closeModal('privacy-modal'); document.getElementById('agree-terms').checked = true;"
+                    data-modal-accept="privacy-modal"
                 >I agree - Close</button>
             </div>
         </div>
 @endsection
-
-@push('scripts')
-<script>
-function togglePassword(fieldId, btn) {
-    const field = document.getElementById(fieldId);
-
-    if (!field) {
-        return;
-    }
-
-    const shouldShow = field.type === 'password';
-    field.type = shouldShow ? 'text' : 'password';
-    btn.textContent = shouldShow ? 'Hide' : 'Show';
-}
-
-function openModal(id) {
-    const modal = document.getElementById(id);
-
-    if (!modal) {
-        return;
-    }
-
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeModal(id) {
-    const modal = document.getElementById(id);
-
-    if (!modal) {
-        return;
-    }
-
-    modal.classList.add('hidden');
-    document.body.style.overflow = '';
-}
-
-function handleModalBackdrop(event) {
-    if (event.target === event.currentTarget) {
-        closeModal(event.currentTarget.id);
-    }
-}
-
-function switchTab(tab) {
-    const mode = tab === 'register' || tab === 'signup' ? 'register' : 'signin';
-    const signin = document.getElementById('form-signin');
-    const register = document.getElementById('form-register');
-    const tabSignin = document.getElementById('tab-signin');
-    const tabRegister = document.getElementById('tab-register');
-
-    if (!signin || !register || !tabSignin || !tabRegister) {
-        return;
-    }
-
-    const showSignin = mode === 'signin';
-    signin.hidden = !showSignin;
-    register.hidden = showSignin;
-    signin.classList.toggle('is-active', showSignin);
-    register.classList.toggle('is-active', !showSignin);
-
-    tabSignin.classList.toggle('is-active', showSignin);
-    tabSignin.classList.toggle('active', showSignin);
-    tabSignin.setAttribute('aria-selected', showSignin ? 'true' : 'false');
-
-    tabRegister.classList.toggle('is-active', !showSignin);
-    tabRegister.classList.toggle('active', !showSignin);
-    tabRegister.setAttribute('aria-selected', !showSignin ? 'true' : 'false');
-}
-
-@if ($errors->register->isNotEmpty())
-    switchTab('register');
-@endif
-
-const registerPassword = document.getElementById('register-password');
-
-if (registerPassword) {
-    registerPassword.addEventListener('input', function () {
-        const val = this.value;
-        const bar = document.getElementById('password-strength-bar');
-        const fill = document.getElementById('strength-fill');
-        const label = document.getElementById('strength-label');
-
-        if (!bar || !fill || !label) {
-            return;
-        }
-
-        if (!val) {
-            bar.hidden = true;
-            label.hidden = true;
-            return;
-        }
-
-        bar.hidden = false;
-        label.hidden = false;
-
-        let score = 0;
-        if (val.length >= 8) score++;
-        if (val.length >= 12) score++;
-        if (/[A-Z]/.test(val)) score++;
-        if (/[0-9]/.test(val)) score++;
-        if (/[^A-Za-z0-9]/.test(val)) score++;
-
-        const levels = [
-            { pct: '20%', color: '#c0392b', text: 'Too weak' },
-            { pct: '40%', color: '#e67e22', text: 'Weak' },
-            { pct: '60%', color: '#f39c12', text: 'Fair' },
-            { pct: '80%', color: '#27ae60', text: 'Strong' },
-            { pct: '100%', color: '#2d6a4f', text: 'Very strong' },
-        ];
-        const level = levels[Math.min(score, 4)];
-
-        fill.style.width = level.pct;
-        fill.style.background = level.color;
-        label.textContent = level.text;
-        label.style.color = level.color;
-    });
-}
-
-let usernameTimer;
-const registerUsername = document.getElementById('register-username');
-
-if (registerUsername) {
-    registerUsername.addEventListener('input', function () {
-        const status = document.getElementById('username-status');
-        const val = this.value.trim();
-
-        if (!status) {
-            return;
-        }
-
-        clearTimeout(usernameTimer);
-
-        if (val.length < 3) {
-            status.hidden = true;
-            return;
-        }
-
-        status.hidden = false;
-        status.textContent = 'Checking...';
-        status.style.color = '#b09070';
-
-        usernameTimer = setTimeout(() => {
-            fetch('{{ route('username.check') }}?username=' + encodeURIComponent(val))
-                .then(response => response.json())
-                .then(data => {
-                    if (data.available) {
-                        status.textContent = '@' + val + ' is available';
-                        status.style.color = '#2d6a4f';
-                    } else {
-                        status.textContent = '@' + val + ' is already taken';
-                        status.style.color = '#c0392b';
-                    }
-                })
-                .catch(() => {
-                    status.textContent = 'Could not check username right now.';
-                    status.style.color = '#c0392b';
-                });
-        }, 500);
-    });
-}
-</script>
-@endpush

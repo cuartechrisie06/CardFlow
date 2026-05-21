@@ -9,6 +9,7 @@ use App\Models\WishlistItem;
 use App\Policies\UserCardPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,6 +28,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Vite::createAssetPathsUsing(fn (string $path) => '/' . ltrim($path, '/'));
+
         Gate::policy(UserCard::class, UserCardPolicy::class);
 
         \Blade::directive('initials', function ($expression) {
